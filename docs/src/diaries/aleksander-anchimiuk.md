@@ -1,6 +1,6 @@
 # Work diary · Aleksander Anchimiuk
 
-> Student: **Aleksander Anchimiuk** (`aleksanderanchimiuk@gmail.com`)  
+> Student: **Aleksander Anchimiuk** (`aleksanderanchimiuk@gmail.com`,`aleanc@taltech.ee`)  
 > Repository: `ite4120-vessel-and-license-register`  
 > Component: **Vessel and License Register** (`vessels`)
 
@@ -56,10 +56,39 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 
 ---
 
+### Entry 2: Team Synchronization & Project Review
+
+* **Date**: 2026-10-22
+* **Duration**: 1.0 hour
+* **Target Milestone**: Session 1 — Team alignment, component ideation review, next steps.
+
+#### 1. What was done
+1. **Group Sync Call**:
+   * Held a 1-hour synchronization call with team members to align on project architecture, goals, and working conventions.
+   * Discussed technicalities of the platform template: Spring Boot backend, Liquibase migrations, Testcontainers integration testing, and React with `@helex/ui`.
+   * Outlined development workflow and planned upcoming milestones for the component implementation.
+2. **Pending Actions Identified**:
+   * Team members to review the draft idea, user story, and specification documents:
+     * User story: [VESSELS-US-001](../user-stories/VESSELS-US-001.md)
+     * Specification: [VESSELS.01](../specifications/VESSELS.01-vessel-register.md)
+   * Team members to set up their local development environments (JDK 25, Docker, GitHub Packages read token for Gradle and npm) and execute the example application locally.
+
+#### 2. What I asked the AI agent
+* "To summarize and document the outcomes of the meeeting"
+
+#### 3. What the agent got wrong / Pitfalls encountered
+* None encountered during this team sync session.
+
+#### 4. How it was corrected
+* N/A.
+
+---
+
 ### Time Summary
 
 | Milestone / Task | Date | Hours |
 | :--- | :--- | :--- |
 | Session 1: Environment verification, token configuration, template test, docs draft | 2026-10-07 | 2.5 h |
-| **Total** | | **2.5 h** |
+| Session 1: Team synchronization call (technicalities, next steps, action items) | 2026-10-22 | 1.0 h |
+| **Total** | | **3.5 h** |
 
