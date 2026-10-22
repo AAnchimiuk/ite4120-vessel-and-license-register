@@ -7,7 +7,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.http.MediaType;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
@@ -50,9 +51,28 @@ public class SecurityConfig {
                 // Missing/invalid credentials are 401 (who are you?); an authenticated
                 // request without rights would be 403 (I know, and no). The course's
                 // S3 distinction, enforced here — Spring's default is 403 for both.
-                .exceptionHandling(e -> e.authenticationEntryPoint(
-                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .exceptionHandling(e -> e.authenticationEntryPoint(problemDetail401()))
                 .addFilterBefore(mockAuth, UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    /**
+     * A 401 that says WHY. Spring's stock entry point answers with an empty body,
+     * which a beginner's bare {@code curl} renders as pure silence — the most
+     * reported point of confusion in the template. Same RFC 9457 problem-detail
+     * shape as every other error this API produces (see {@code ApiErrorHandler}).
+     */
+    private static AuthenticationEntryPoint problemDetail401() {
+        return (request, response, ex) -> {
+            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+            /* The servlet writer defaults to ISO-8859-1, which mangles anything
+               beyond ASCII in the detail text. */
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write("""
+                    {"type":"about:blank","title":"Unauthorized","status":401,\
+                    "detail":"missing or invalid Authorization header — send 'Authorization: Bearer <username>' (any username in local mock mode)",\
+                    "instance":"%s"}""".formatted(request.getRequestURI()));
+        };
     }
 }
