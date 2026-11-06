@@ -91,6 +91,6 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 
 | Milestone / Task                                                              | Date       | Hours       |
 |:------------------------------------------------------------------------------|:-----------|:------------|
-| Session 2: BABOK template, user story drafts, comparison, VESSELS-US-002       | 2026-10-16 | <X> h       |
-| Session 3: VESSELS-US-003/004, specifications VESSELS.02–04, diary            | 2026-11-06 | <X> h       |
-| **Total**                                                                     |            | **<X> h**   |
+| Session 2: BABOK template, user story drafts, comparison, VESSELS-US-002       | 2026-10-16 | 1 h       |
+| Session 3: VESSELS-US-003/004, specifications VESSELS.02–04, diary            | 2026-11-06 | 1 h       |
+| **Total**                                                                     |            | **2 h**   |
