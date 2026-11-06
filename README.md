@@ -1,14 +1,66 @@
-# ITE4120 — Animals Register · Course Template
+# ITE4120 — Vessel and License Register
 
-A working e-government-shaped application, built the way the Estonian public
-sector builds them — and the template your group extends with **your own
-component**. The worked example is the **animals register**: three tables under
-Liquibase, a documented REST API, an owner lookup through a registry adapter
-(mock locally, X-Road-shaped for production), and a React UI on the Helex
-component library.
+Welcome to the **Vessel and License Register** project repository for ITE4120. This documentation is organized into two primary sections:
 
-Everything Helex arrives as **published packages** — there is no platform source
-checkout here and none is needed.
+1. **[Part 1: Our Solution — Vessel and License Register](#part-1-our-solution--vessel-and-license-register)**: Overview of our component, the maritime user story, context, acceptance criteria, and target architecture.
+2. **[Part 2: Course Template & Technical Guide](#part-2-course-template--technical-guide)**: Local setup instructions, running the backend and frontend, test suites, toolchain installation, and GitHub token configuration.
+
+---
+
+## Part 1: Our Solution — Vessel and License Register
+
+Our team's project component is the **Vessel and License Register** (`ee.taltech.ite4120.vessels`). It delivers a state register for maritime watercraft, commercial ships, and recreational vessels for maritime administration authorities (Transpordiamet / Veeteede Amet), together with their operational and safety licenses.
+
+### User Story: VESSELS-US-001
+
+> **Traces to:** [VESSELS-US-001](docs/src/user-stories/VESSELS-US-001.md) · [VESSELS.01 Specification](docs/src/specifications/VESSELS.01-vessel-register.md)
+
+**As** a maritime administration officer (Transpordiamet / Veeteede Amet),  
+**I want** a register of vessels with their owners and maritime licenses,  
+**so that** I can verify whether a vessel is legally registered, who owns it, and whether its operating and safety licenses are active and valid — without consulting multiple separate authorities.
+
+### Context & Problem Statement
+
+The Estonian maritime administration maintains official state records of all water craft, recreational vessels, and commercial ships:
+- **Official Registry Code**: Each vessel is registered under a unique national or international registry code.
+- **One Source of Truth (Estonian E-Government Architecture)**: The owner of the vessel is **never** duplicated as free-text data in the vessel register. The register stores only the owner's personal identification code (`isikukood`, exactly 11 digits as a string) and resolves the owner's full name and address live from the Estonian population registry over X-Road (imitated via an external registry adapter in development).
+- **Fail-Open Architecture**: If the population registry adapter is temporarily unavailable, the system fails open: the vessel record and its operational licenses remain fully accessible and editable, while only the `/owner` endpoint reports a 502 Bad Gateway.
+- **Maritime Licenses**: Vessels hold one or more operational licenses (navigation permits, commercial fishing licenses, passenger transport certifications) with strict validity periods and status tracking.
+
+### Key Acceptance Criteria & Business Rules
+
+1. **Vessel Registration & Uniqueness**:
+   - Vessels are registered with a unique registry code, name, vessel type, and optional build year, home port, gross tonnage, and owner code.
+   - A registry code identifies exactly one **active** vessel (`where sys_status = 'A'`). The registry code of a retired (soft-deleted) vessel may be reused.
+2. **Input Validation**:
+   - Unknown vessel types are rejected with `400 Bad Request`.
+   - Build year cannot be in the future (e.g. greater than the current year).
+   - Owner personal code must be formatted as exactly 11 numeric characters (stored as a string, never a number).
+3. **License Constraints**:
+   - Maritime licenses include a license number, license type, issue date, expiration date (`valid_until`), and status.
+   - A license whose expiration date precedes its issue date (`valid_until < issued_on`) is refused with `400 Bad Request`.
+4. **Live External Owner Lookup**:
+   - For any vessel with an owner code, the UI and API fetch live owner details via the registry adapter; no personal registry data is stored locally.
+
+### Component Layers & Architecture
+
+| Layer | Location | Purpose |
+| --- | --- | --- |
+| **Specification & Documentation** | [`docs/src/specifications/VESSELS.01-vessel-register.md`](docs/src/specifications/VESSELS.01-vessel-register.md) | mdBook spec defining data model, REST API endpoints, business rules, and UI layout |
+| **Data Layer (PostgreSQL + Liquibase)** | `backend/src/main/resources/vessels/db/changelog/` | Schema `vessels` with tables `vessel_type`, `vessel`, and `license` |
+| **API Layer (Spring Boot + springdoc)** | `backend/src/main/java/ee/taltech/ite4120/vessels/` | REST controllers, service layer, repository (`BaseRepository`), Problem Details errors |
+| **Registry Adapter** | `.../vessels/ownerregistry/` | Live population registry client with wire records and mapper |
+| **UI (React + @helex/ui)** | `frontend/src/pages/vessels/` | Vessel list (`ResourceList`) and detail/edit view (`ResourceForm` + `useDataController`) |
+
+Full documentation is available in the mdBook documentation suite (run `scripts/run-docs.sh` to serve locally).
+
+---
+
+## Part 2: Course Template & Technical Guide
+
+This project is built using the ITE4120 course template. The reference implementation provided with the template is the **animals register** (`ee.taltech.ite4120.animals`), which provides the architectural conventions and working examples for our vessel component.
+
+Everything Helex arrives as **published packages** — there is no platform source checkout here and none is needed.
 
 | Layer | Where | Session |
 | --- | --- | --- |
@@ -23,7 +75,7 @@ The UI wears the **TalTech theme** — the `taltech` pack from
 and selected by `VITE_THEME` in `frontend/.env` (the @helex/ui built-ins
 `helex`, `tedi`, `matrix` work there too).
 
-## Run it
+### Run it
 
 First time on this machine? Install the toolchain and the GitHub Packages
 token first — [§ Tools](#tools), at the end of this file. Then:
@@ -50,13 +102,13 @@ Signed in automatically as a mock user; the API accepts
 disposable: `scripts/reset-db` destroys and recreates it, and Liquibase
 rebuilds the schema on the next backend start.
 
-## Tests
+### Tests
 
 ```bash
 cd backend && ./gradlew test      # business tests, against a throwaway PostgreSQL
 ```
 
-The two tests in `AnimalBusinessRulesIT` are the specification's business tests,
+The tests in `AnimalBusinessRulesIT` are the specification's business tests,
 executable — and they also prove the migrations run clean from empty.
 
 The same tests, the frontend typecheck and build, and the changeset gate run on
@@ -65,7 +117,7 @@ they need nothing from you beyond the repository itself. A copy of this
 repository whose Actions token cannot read the Maven mirror adds a `GPR_TOKEN`
 repository secret (the same classic token as in § Tools).
 
-## Your component
+### Your component
 
 1. Copy `docs/_templates/` → write your user story and specification (different
    domain from animals!).
@@ -75,14 +127,14 @@ repository secret (the same classic token as in § Tools).
 4. Rules of the road: `AGENTS.md` (for your agent — and for you). Claude Code,
    Cursor, Copilot and Gemini are all pointed at that one file; use whichever.
 
-## Reading order
+### Reading order
 
 `docs/src/README-docs.md` → the animals story and spec in `docs/src/` →
 the three manuals in `docs/src/manuals/` (database, REST API, frontend) →
 `docs/src/liquibase-guide.md` → `docs/src/development-workflow.md`. Or serve the
 book with live reload: `scripts/run-docs` (`.sh` / `.ps1`).
 
-## Tools
+### Tools
 
 What the scripts and builds in this repository actually call, and why:
 
@@ -106,7 +158,7 @@ Colima: `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
 TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` before
 `./gradlew test`.
 
-### Install with a package manager
+#### Install with a package manager
 
 One script per platform, idempotent, safe to re-run. Each installs the
 package manager itself if it is missing, then the rows above, then prints a
@@ -139,7 +191,7 @@ RemoteSigned` once. Docker Desktop must be started once by hand after install
 (it finishes the WSL 2 setup on first start). winget and Scoop carry the same
 packages if you prefer them.
 
-### GitHub token
+#### GitHub token
 
 The one step nothing works without: the Helex packages live in GitHub
 Packages, which refuses anonymous reads.
