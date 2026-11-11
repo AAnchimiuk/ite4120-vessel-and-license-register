@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Select } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import {
   AppButtonPrimary,
@@ -25,20 +26,31 @@ export const AnimalList = () => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Animal | null>(null);
   const [owner, setOwner] = useState<OwnerInfo | null>(null);
+  /* The filter panel's state. `speciesFilter` is what the Select shows;
+     `appliedSpecies` is what the list is actually filtered by — they meet
+     when the user presses Apply, which is how ResourceList's filter card
+     works (explicit apply, unlike the as-you-type search field). */
+  const [species, setSpecies] = useState<{ code: string; name: string }[]>([]);
+  const [speciesFilter, setSpeciesFilter] = useState<string | undefined>();
+  const [appliedSpecies, setAppliedSpecies] = useState<string | undefined>();
 
-  const load = useCallback((text: string) => {
+  useEffect(() => {
+    animalsApi.species().then(setSpecies).catch(() => setSpecies([]));
+  }, []);
+
+  const load = useCallback((text: string, speciesCode?: string) => {
     setLoading(true);
     animalsApi
-      .list(text || undefined)
+      .list(text || undefined, speciesCode)
       .then((result) => setAnimals(result.data))
       .catch((e) => notify.error('Could not load animals', e.message))
       .finally(() => setLoading(false));
   }, [notify]);
 
   useEffect(() => {
-    const t = setTimeout(() => load(search), 250);
+    const t = setTimeout(() => load(search, appliedSpecies), 250);
     return () => clearTimeout(t);
-  }, [search, load]);
+  }, [search, appliedSpecies, load]);
 
   useEffect(() => {
     setOwner(null);
@@ -89,6 +101,23 @@ export const AnimalList = () => {
       rowKey="id"
       loading={loading}
       search={{ value: search, onChange: setSearch, placeholder: 'Name or registry code…' }}
+      filter={{
+        content: (
+          <Select
+            style={{ minWidth: 220 }}
+            placeholder="Species"
+            allowClear
+            value={speciesFilter}
+            onChange={setSpeciesFilter}
+            options={species.map((s) => ({ value: s.code, label: s.name }))}
+          />
+        ),
+        onApply: () => setAppliedSpecies(speciesFilter),
+        onClear: () => {
+          setSpeciesFilter(undefined);
+          setAppliedSpecies(undefined);
+        },
+      }}
       actions={
         <AppButtonPrimary icon={<PlusOutlined />} onClick={() => navigate('/animals/new')}>
           Register animal

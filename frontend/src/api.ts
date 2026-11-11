@@ -47,10 +47,11 @@ async function handle<T>(response: Response): Promise<T> {
 }
 
 export const animalsApi = {
-  list: (textContains?: string): Promise<QueryResult<Animal>> =>
+  list: (textContains?: string, speciesCode?: string): Promise<QueryResult<Animal>> =>
     fetch(
       '/api/animals?limit=50' +
-        (textContains ? `&textContains=${encodeURIComponent(textContains)}` : ''),
+        (textContains ? `&textContains=${encodeURIComponent(textContains)}` : '') +
+        (speciesCode ? `&speciesCode=${encodeURIComponent(speciesCode)}` : ''),
       { headers: authHeaders() },
     ).then((r) => handle<QueryResult<Animal>>(r)),
 
