@@ -84,11 +84,40 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 
 ---
 
+### Entry 3: Specification Consolidation & Backlog Alignment
+
+* **Date**: 2026-11-12
+* **Duration**: 0.5 hours
+* **Target Milestone**: Session 3 — Component backlog reconciliation & specification consolidation (Process Rule 1).
+
+#### 1. What was done
+1. **Team Review Meeting (2026-11-12)**:
+   * Held a team meeting to review the four user stories ([VESSELS-US-001](../user-stories/VESSELS-US-001.md), [VESSELS-US-002](../user-stories/VESSELS-US-002.md), [VESSELS-US-003](../user-stories/VESSELS-US-003.md), [VESSELS-US-004](../user-stories/VESSELS-US-004.md)) and the corresponding specifications drafted for the vessel component.
+   * Decided to consolidate the 4 separate specification documents (VESSELS.01 to VESSELS.04) into a single, unified, canonical specification: [VESSELS.01-vessel-register.md](../specifications/VESSELS.01-vessel-register.md).
+2. **Unified Architecture & Specification Reconciled**:
+   * Consolidated the data model into 5 clean tables: reference tables `vessels.vessel_type` and `vessels.retirement_reason`, alongside business tables `vessels.vessel`, `vessels.license`, and `vessels.vessel_ownership`.
+   * Reconciled dynamic license validity calculation (`effectiveStatus`: `VALID`, `EXPIRING_SOON`, `EXPIRED`, `NOT_YET_VALID`, `REVOKED`) and formal revocation.
+   * Specified ownership transfer with dated periods (`vessel_ownership`) and live X-Road validation of the new owner's `isikukood`.
+   * Formulated recorded retirement with atomic soft-delete, freeing registry codes for reuse, cascading license revocation, and freezing retired vessels against mutations.
+   * Reconciled external registry failure policies: fail-open on lookups, fail-closed on ownership transfers.
+   * Formulated 16 executable business test scenarios in Given-When-Then format covering all four functional areas.
+3. **User Stories & Documentation Consistency**:
+   * Aligned all four user story files with consistent tracing headers, persona definitions (`**As** / **I want** / **so that**`), and standardized HTTP error codes (`400 Bad Request`, `409 Conflict`, `502 Bad Gateway`).
+   * Removed obsolete specification files (VESSELS.02, VESSELS.03, VESSELS.04).
+   * Updated [SUMMARY.md](../SUMMARY.md) and [README.md](../../../README.md) to reflect the unified specification and full component scope.
+
+#### 2. What I asked the AI agent
+* "I want to merge that 4 specification files about vessel register into one file. I want to have this info consistent also with vessels user stories"
+
+
+---
+
 ### Time Summary
 
 | Milestone / Task | Date | Hours |
 | :--- | :--- | :--- |
 | Session 1: Environment verification, token configuration, template test, docs draft | 2026-10-07 | 2.5 h |
 | Session 1: Team synchronization call (technicalities, next steps, action items) | 2026-10-22 | 1.0 h |
-| **Total** | | **3.5 h** |
+| Session 3: Specification consolidation & backlog alignment (team meeting on 12.11) | 2026-11-12 | 0.5 h |
+| **Total** | | **4.0 h** |
 

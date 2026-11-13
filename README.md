@@ -11,46 +11,59 @@ Welcome to the **Vessel and License Register** project repository for ITE4120. T
 
 Our team's project component is the **Vessel and License Register** (`ee.taltech.ite4120.vessels`). It delivers a state register for maritime watercraft, commercial ships, and recreational vessels for maritime administration authorities (Transpordiamet / Veeteede Amet), together with their operational and safety licenses.
 
-### User Story: VESSELS-US-001
+### User Stories & Requirements
 
-> **Traces to:** [VESSELS-US-001](docs/src/user-stories/VESSELS-US-001.md) · [VESSELS.01 Specification](docs/src/specifications/VESSELS.01-vessel-register.md)
+> **Traces to:** [VESSELS-US-001](docs/src/user-stories/VESSELS-US-001.md) (Registration & Lookups) · [VESSELS-US-002](docs/src/user-stories/VESSELS-US-002.md) (License Validity & Expiries) · [VESSELS-US-003](docs/src/user-stories/VESSELS-US-003.md) (Ownership Transfer) · [VESSELS-US-004](docs/src/user-stories/VESSELS-US-004.md) (Vessel Retirement) · [VESSELS.01 Specification](docs/src/specifications/VESSELS.01-vessel-register.md)
 
-**As** a maritime administration officer (Transpordiamet / Veeteede Amet),  
-**I want** a register of vessels with their owners and maritime licenses,  
-**so that** I can verify whether a vessel is legally registered, who owns it, and whether its operating and safety licenses are active and valid — without consulting multiple separate authorities.
+Our solution spans four key business capabilities:
+1. **VESSELS-US-001 · Registration & Search**: Maritime administration officers register vessels with unique registry codes, maintain essential characteristics, look up live owner identities via X-Road, and issue licenses.
+2. **VESSELS-US-002 · License Validity & Expiries**: Operational licenses have dynamically derived effective statuses (`VALID`, `EXPIRING_SOON`, `EXPIRED`, `NOT_YET_VALID`, `REVOKED`), support formal revocation with reasons, and feed an expiring licenses view (default within 30 days).
+3. **VESSELS-US-003 · Ownership Transfer**: Vessel ownership changes are recorded as dated periods (`vessel_ownership`), maintaining complete audit history. New owner personal codes are validated live against the population registry before transfer (fail-closed).
+4. **VESSELS-US-004 · Recorded Retirement**: Decommissioned, scrapped, lost, or re-flagged vessels undergo formal recorded retirement, atomically soft-deleting the vessel, freeing its registry code for reuse, automatically revoking active licenses, and freezing further mutations.
 
 ### Context & Problem Statement
 
 The Estonian maritime administration maintains official state records of all water craft, recreational vessels, and commercial ships:
-- **Official Registry Code**: Each vessel is registered under a unique national or international registry code.
+- **Official Registry Code**: Each vessel is registered under a unique national or international registry code. Codes of retired vessels can be safely reused.
 - **One Source of Truth (Estonian E-Government Architecture)**: The owner of the vessel is **never** duplicated as free-text data in the vessel register. The register stores only the owner's personal identification code (`isikukood`, exactly 11 digits as a string) and resolves the owner's full name and address live from the Estonian population registry over X-Road (imitated via an external registry adapter in development).
-- **Fail-Open Architecture**: If the population registry adapter is temporarily unavailable, the system fails open: the vessel record and its operational licenses remain fully accessible and editable, while only the `/owner` endpoint reports a 502 Bad Gateway.
-- **Maritime Licenses**: Vessels hold one or more operational licenses (navigation permits, commercial fishing licenses, passenger transport certifications) with strict validity periods and status tracking.
+- **Dual External Registry Failure Policy**:
+  - *Fail-open on queries*: If the population registry adapter is temporarily unavailable, read endpoints return 502 Bad Gateway for owner details while vessel records, licenses, and ownership history remain fully accessible and operable.
+  - *Fail-closed on transfers*: When transferring ownership, registry availability and live validation of the new owner's code are mandatory; if the registry is unreachable, the transfer is refused with 502 Bad Gateway.
+- **Dynamic License Lifecycle**: Validity is calculated on-the-fly from issue and expiration dates and revocation status. An officer can revoke valid licenses with mandatory reason and date.
+- **Auditable Ownership & Retirement**: Ownership is tracked across dated periods. Retiring a vessel preserves all historical records for inspection while preventing new operations.
 
 ### Key Acceptance Criteria & Business Rules
 
-1. **Vessel Registration & Uniqueness**:
+1. **Vessel Registration & Code Reuse**:
    - Vessels are registered with a unique registry code, name, vessel type, and optional build year, home port, gross tonnage, and owner code.
    - A registry code identifies exactly one **active** vessel (`where sys_status = 'A'`). The registry code of a retired (soft-deleted) vessel may be reused.
 2. **Input Validation**:
-   - Unknown vessel types are rejected with `400 Bad Request`.
+   - Unknown vessel types or retirement reasons are rejected with `400 Bad Request`.
    - Build year cannot be in the future (e.g. greater than the current year).
    - Owner personal code must be formatted as exactly 11 numeric characters (stored as a string, never a number).
-3. **License Constraints**:
-   - Maritime licenses include a license number, license type, issue date, expiration date (`valid_until`), and status.
+3. **License Constraints & Effective Status**:
+   - Maritime licenses include a license number, license type, issue date, expiration date (`valid_until`), and status (`ACTIVE` or `REVOKED`).
    - A license whose expiration date precedes its issue date (`valid_until < issued_on`) is refused with `400 Bad Request`.
-4. **Live External Owner Lookup**:
-   - For any vessel with an owner code, the UI and API fetch live owner details via the registry adapter; no personal registry data is stored locally.
+   - A valid license can be revoked once with a date and reason; revoking an already expired or revoked license is refused with `409 Conflict`.
+   - Expiring licenses view excludes retired vessels.
+4. **Ownership Transfer & Registry Verification**:
+   - Transferring ownership closes the active period and opens a new period in `vessel_ownership`.
+   - The new owner's personal code is validated live; unrecognised codes or transfers to the current owner are refused with `400 Bad Request`.
+   - Unreachable registry refuses the transfer with `502 Bad Gateway`.
+5. **Retirement Integrity**:
+   - Retiring a vessel requires a date, valid reason, and note if reason is `OTHER`.
+   - Retirement automatically revokes all currently valid licenses with reason "Vessel retired".
+   - Retired vessels are frozen: updates, license issuance, and ownership transfers are refused with `409 Conflict`.
 
 ### Component Layers & Architecture
 
 | Layer | Location | Purpose |
 | --- | --- | --- |
-| **Specification & Documentation** | [`docs/src/specifications/VESSELS.01-vessel-register.md`](docs/src/specifications/VESSELS.01-vessel-register.md) | mdBook spec defining data model, REST API endpoints, business rules, and UI layout |
-| **Data Layer (PostgreSQL + Liquibase)** | `backend/src/main/resources/vessels/db/changelog/` | Schema `vessels` with tables `vessel_type`, `vessel`, and `license` |
+| **Specification & Documentation** | [`docs/src/specifications/VESSELS.01-vessel-register.md`](docs/src/specifications/VESSELS.01-vessel-register.md) | Single unified mdBook spec defining data model, REST API endpoints, business rules, and UI layout |
+| **Data Layer (PostgreSQL + Liquibase)** | `backend/src/main/resources/vessels/db/changelog/` | Schema `vessels` with tables `vessel_type`, `retirement_reason`, `vessel`, `license`, and `vessel_ownership` |
 | **API Layer (Spring Boot + springdoc)** | `backend/src/main/java/ee/taltech/ite4120/vessels/` | REST controllers, service layer, repository (`BaseRepository`), Problem Details errors |
 | **Registry Adapter** | `.../vessels/ownerregistry/` | Live population registry client with wire records and mapper |
-| **UI (React + @helex/ui)** | `frontend/src/pages/vessels/` | Vessel list (`ResourceList`) and detail/edit view (`ResourceForm` + `useDataController`) |
+| **UI (React + @helex/ui)** | `frontend/src/pages/vessels/`, `frontend/src/pages/licenses/` | Vessel list (`ResourceList`), vessel detail (`ResourceForm` + `useDataController`), and expiring licenses list |
 
 Full documentation is available in the mdBook documentation suite (run `scripts/run-docs.sh` to serve locally).
 

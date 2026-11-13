@@ -28,5 +28,5 @@ commercial fishing license, passenger transport certification) which have clear 
 - The vessel register is searchable by name or registry code and filterable by vessel type.
 - For a vessel with an owner, the officer sees the owner's current full name and address, fetched live from the external registry adapter — never stored locally.
 - Maritime licenses can be viewed and added for each vessel, with a license number, license type, issue date, and expiration date.
-- A license whose expiration date is prior to its issue date is refused.
+- A license whose expiration date is prior to its issue date is refused with a validation error (400).
 
