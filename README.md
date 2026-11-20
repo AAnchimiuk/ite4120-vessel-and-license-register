@@ -124,6 +124,68 @@ cd backend && ./gradlew test      # business tests, against a throwaway PostgreS
 The tests in `AnimalBusinessRulesIT` are the specification's business tests,
 executable — and they also prove the migrations run clean from empty.
 
+#### Vessels backend and the mock X-Road registry
+
+The vessels API (`/api/vessels`, `/api/licenses`; contract in Swagger UI and
+[VESSELS.01](docs/src/specifications/VESSELS.01-vessel-register.md)) lives in
+`ee.taltech.ite4120.vessels` (`api` → `service` → `repository`). Owner lookups and
+ownership transfers go through the shared `OwnerRegistryAdapter`: locally it calls this
+app's own mock registry (`/mock-registry/persons/{isikukood}`, known codes `38102130265`,
+`47503121234`, `50011020017`); `animals.owner-registry.mode=xroad` switches to the
+forge-xroad transport with no code change. Owner reads **fail open** (502 on that
+endpoint only); a transfer **fails closed** (registry down → 502, nothing saved).
+`VesselBusinessRulesIT` (spec business tests, registry mocked) and `VesselApiIT`
+(real HTTP against the built-in mock registry) cover it.
+
+#### Testing the vessels database layer
+
+**What is used:** JUnit 5 + AssertJ (via `spring-boot-starter-test`), Spring Boot
+test context, and **Testcontainers** — each integration test class starts a
+throwaway `postgres:18-alpine` container, Liquibase applies the *whole* changelog
+(core + animals + vessels + demo data) to it from empty, and the container is
+destroyed afterwards. Your local database (`scripts/run-backend`) is never touched,
+so tests are safe to run any time. **Docker must be running** (see § Tools).
+
+| Test class (`backend/src/test/java/ee/taltech/ite4120/vessels/`) | Kind | What it proves |
+| --- | --- | --- |
+| `VesselDataLayerIT` | integration, needs Docker | migrations run clean; reference lists seeded; `sys_*` trigger columns; registry-code uniqueness among active rows and reuse after retirement; every CHECK/FK constraint of `vessel`, `license`, `vessel_ownership` refuses bad data; search/filter/paging; license revocation, history, retirement cascade and expiring list; ownership periods (one open period, transfer) |
+| `LicenseEffectiveStatusTest` | plain unit test, no Docker | derived license status (`VALID`, `EXPIRING_SOON`, `EXPIRED`, `NOT_YET_VALID`, `REVOKED`) incl. boundary days 0/30/31 |
+
+The rules are taken from [VESSELS.01](docs/src/specifications/VESSELS.01-vessel-register.md)
+(data model + business tests); if you change a rule, change the spec in the same PR.
+
+```bash
+cd backend
+
+./gradlew test                                          # everything (animals + vessels)
+./gradlew test --tests '*VesselDataLayerIT'             # only the vessels data-layer tests
+./gradlew test --tests '*LicenseEffectiveStatusTest'    # only the fast unit test (no Docker)
+./gradlew test --tests '*VesselDataLayerIT.registryCodeIsUniqueAmongActiveVesselsAndReusableAfterRetirement'   # one test
+./gradlew test --rerun                                  # force a rerun even if nothing changed
+```
+
+Reports: `backend/build/reports/tests/test/index.html` (open in a browser) and
+XML in `backend/build/test-results/test/`. Two more checks that belong to the
+database layer and run on every PR:
+
+```bash
+scripts/check-changesets          # formatted-SQL grammar of every changelog (rule 6)
+scripts/reset-db                  # manual: drop local DB; next backend start replays all changesets
+```
+
+**Manual check against the real local database** — start the backend
+(`scripts/run-backend`), then `scripts/psql` and try e.g.:
+
+```sql
+select registry_code, name, sys_status from vessels.vessel order by id;
+select license_number, status, valid_until from vessels.license where vessel_id = (select id from vessels.vessel where registry_code = 'EST-1001');
+-- must FAIL (constraint): insert into vessels.vessel (registry_code, name, type_code) values ('X', 'X', 'NOPE');
+```
+
+**Troubleshooting:** *"Could not find a valid Docker environment"* → start Docker
+Desktop (or, with Colima, export `DOCKER_HOST`/`TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE`
+as shown in § Tools). *"cannot resolve org.helex.emr"* → GitHub token (§ GitHub token).
+
 The same tests, the frontend typecheck and build, and the changeset gate run on
 every pull request as the **Verify** checks (`.github/workflows/verify.yml`);
 they need nothing from you beyond the repository itself. A copy of this
