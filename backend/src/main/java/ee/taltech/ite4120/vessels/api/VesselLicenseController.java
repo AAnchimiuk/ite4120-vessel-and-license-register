@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -59,5 +60,15 @@ public class VesselLicenseController {
     public LicenseView revoke(@PathVariable Long vesselId, @PathVariable Long licenseId,
             @Valid @RequestBody RevocationRequest body) {
         return service.revoke(vesselId, licenseId, body.revokedOn(), body.reason());
+    }
+
+    @Operation(summary = "Delete (soft-delete) a scheduled license that is NOT_YET_VALID (issuedOn in the future)")
+    @ApiResponse(responseCode = "204", description = "Deleted")
+    @ApiResponse(responseCode = "404", description = "No such vessel or license")
+    @ApiResponse(responseCode = "409", description = "License has already taken effect, expired, or been revoked, or vessel is retired")
+    @DeleteMapping("/{licenseId}")
+    public ResponseEntity<Void> delete(@PathVariable Long vesselId, @PathVariable Long licenseId) {
+        service.delete(vesselId, licenseId);
+        return ResponseEntity.noContent().build();
     }
 }

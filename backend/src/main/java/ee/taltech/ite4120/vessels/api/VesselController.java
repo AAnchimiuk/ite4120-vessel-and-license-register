@@ -11,9 +11,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import org.helex.commons.model.QueryResult;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,7 +24,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import ee.taltech.ite4120.vessels.service.VesselTime;
 
 /** The vessels REST API (VESSELS.01 § API). HTTP only — the rules live in {@link VesselService}. */
 @RestController
@@ -37,7 +42,7 @@ public class VesselController {
 
     @Operation(summary = "Search vessels — paged; textContains matches code or name; retired=true lists retired vessels")
     @GetMapping
-    public QueryResult<Vessel> search(@ModelAttribute VesselQueryParams params) {
+    public QueryResult<Vessel> search(@ParameterObject @ModelAttribute VesselQueryParams params) {
         return service.search(params);
     }
 
@@ -71,6 +76,21 @@ public class VesselController {
     @PostMapping("/{id}/retirement")
     public Vessel retire(@PathVariable Long id, @Valid @RequestBody RetirementRequest body) {
         return service.retire(id, body.retiredOn(), body.reason(), body.note());
+    }
+
+    @Operation(summary = "Retire a vessel (REST soft delete, 204 No Content) — defaults to today and reason SCRAPPED")
+    @ApiResponse(responseCode = "204", description = "Retired (soft-deleted)")
+    @ApiResponse(responseCode = "400", description = "Validation failed (future date, unknown reason, OTHER without note)")
+    @ApiResponse(responseCode = "404", description = "No such vessel")
+    @ApiResponse(responseCode = "409", description = "Already retired")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(
+            @PathVariable Long id,
+            @RequestParam(required = false) LocalDate retiredOn,
+            @RequestParam(defaultValue = "SCRAPPED") String reason,
+            @RequestParam(required = false) String note) {
+        service.retire(id, retiredOn != null ? retiredOn : VesselTime.today(), reason, note);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Current owner from the population registry (mock locally, X-Road in production)",

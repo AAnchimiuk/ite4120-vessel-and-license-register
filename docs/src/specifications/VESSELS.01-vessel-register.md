@@ -58,6 +58,7 @@ The `vessels` schema consists of two reference tables and three business tables:
 - **At most one open ownership period per vessel**: Enforced by partial unique index `create unique index idx_vessel_ownership_current on vessels.vessel_ownership (vessel_id) where (owned_until is null)`.
 - **Initial ownership**: Registering a vessel with an owner opens its first ownership period with `owned_from = current_date`.
 - **Code reuse on retirement**: On retirement, the vessel row has `sys_status = 'D'`. Because the unique index on `registry_code` is partial (`where sys_status = 'A'`), the registry code is immediately freed for future active vessels.
+- **Personal code (`isikukood`) validation vs. Modulo-11 checksum (Design Decision)**: Personal identification codes are validated for format (`^\d{11}$` — 11 digits as a string) and verified live against the population registry on ownership transfer. Enforcing the official Estonian EVS 585 Modulo-11 checksum digit was evaluated and intentionally omitted to maintain compatibility with the course template's mock population registry (`MockOwnerRegistryController`) and demo data (`38102130265`, `47503121234`, `50011020017`), where two of the three synthetic codes carry illustrative trailing digits (`38102130265` has Modulo-11 remainder `6`; `47503121234` has remainder `9`) rather than strict check digits.
 
 ### Derived Effective Status for Licenses
 
@@ -80,8 +81,9 @@ Both `VALID` and `EXPIRING_SOON` count as **currently valid**.
 | `GET /api/vessels` | paged search: `textContains` (matches code or name), `typeCode`, `retired` (default `false`), `limit`, `offset`, `sort` | — |
 | `GET /api/vessels/{id}` | returns vessel details (active or retired; includes retirement fields when retired) | 404 |
 | `POST /api/vessels` | register vessel; if `ownerIsikukood` is present, opens initial ownership period; answers **201 + Location** | 400 validation · 409 duplicate code on active vessel |
-| `PUT /api/vessels/{id}` | update details (name, buildYear, homePort, grossTonnage); `registryCode` immutable; `ownerIsikukood` can only be set initially if vessel had no owner | 400 validation · 404 · 409 vessel retired or invalid owner modification |
-| `POST /api/vessels/{id}/retirement` | retire vessel: body `{ retiredOn, reason, note? }`; atomically sets retirement fields, soft-deletes row, and revokes all currently valid licenses (`revokedOn = retiredOn`, reason "Vessel retired"); answers **200** | 400 validation · 404 · 409 already retired |
+| `PUT /api/vessels/{id}` | update details (name, buildYear, homePort, grossTonnage); `registryCode` immutable; `ownerIsikukood` can only be set initially if vessel had no owner | 400 validation or invalid owner modification · 404 · 409 vessel retired |
+| `DELETE /api/vessels/{id}` | retire vessel (soft delete, **204 No Content**): optional query params `retiredOn` (default today), `reason` (default `SCRAPPED`), `note`; atomically sets retirement fields, soft-deletes row (`sys_status = 'D'`), and revokes all currently valid licenses | 400 validation · 404 · 409 already retired |
+| `POST /api/vessels/{id}/retirement` | retire vessel with full payload: body `{ retiredOn, reason, note? }`; same atomic soft-delete and license revocation cascade; answers **200** with the retired vessel | 400 validation · 404 · 409 already retired |
 | `GET /api/vessels/{id}/owner` | current owner full name and address via external registry adapter (fail open) | 404 (no owner or not found) · 502 registry down |
 | `POST /api/vessels/{id}/ownership` | transfer ownership: body `{ newOwnerIsikukood, transferDate }`; validates new code live with registry (fail closed); closes active period, opens new period, updates `vessel.owner_isikukood`; answers **201 + Location** | 400 validation · 404 · 409 vessel retired · 502 registry down |
 | `GET /api/vessels/{id}/ownership` | list ownership history periods, newest `ownedFrom` first | 404 |
@@ -89,6 +91,7 @@ Both `VALID` and `EXPIRING_SOON` count as **currently valid**.
 | `GET /api/vessels/{id}/licenses` | all licenses of the vessel (history), each with `effectiveStatus`; newest `issuedOn` first | 404 |
 | `GET /api/vessels/{id}/licenses/{licenseId}` | one license of the vessel, with `effectiveStatus` (target of the `Location` header) | 404 |
 | `POST /api/vessels/{id}/licenses` | issue new license: body `{ licenseNumber, licenseType, issuedOn, validUntil }`; answers **201 + Location** | 400 validation (validUntil < issuedOn) · 404 · 409 vessel retired |
+| `DELETE /api/vessels/{id}/licenses/{licenseId}` | delete (soft delete, **204 No Content**) a license that is `NOT_YET_VALID` (`issued_on > today`); licenses that have already taken effect, expired, or been revoked cannot be deleted | 404 · 409 license is not `NOT_YET_VALID` or vessel retired |
 | `POST /api/vessels/{id}/licenses/{licenseId}/revocation` | revoke a currently valid license: body `{ revokedOn, reason }`; answers **200** with updated license | 400 validation · 404 · 409 not currently valid or vessel retired |
 | `GET /api/licenses/expiring` | paged list: `withinDays` (default 30, 1–365), `licenseType`, `limit`, `offset`; sorted `validUntil` ascending; active vessels only | 400 bad `withinDays` |
 | `GET /api/vessels/types` | reference list of vessel types | — |
@@ -119,6 +122,7 @@ Every error response is formatted as `application/problem+json`. All endpoints r
 | | licenses sub-list | table | **all** licenses; columns: license number, type, issued date, valid until date, status tag (color per `effectiveStatus`); row action "Revoke" |
 | | compliance summary | `AppCard` | per license type ever issued: ✓ if at least one currently valid license (`VALID` or `EXPIRING_SOON`), ✗ otherwise |
 | | revoke action | row action + modal | visible only for `VALID` or `EXPIRING_SOON` licenses; fields: revocation date (`DatePicker`, default today, not in future), reason (`TextArea`, required); confirmation dialog |
+| | delete license action | row action + confirmation | visible only for `NOT_YET_VALID` licenses (`issued_on > today`); soft-deletes (`DELETE`) the scheduled license; hidden for active, expired, or revoked licenses |
 | | add license action | `AppButtonPrimary` | hidden for retired vessels; opens modal with license number, type, issued date, valid until date |
 | | retire action | `AppButtonPrimary` (danger) | hidden for retired vessels; opens Retire Vessel modal |
 | | retire modal | modal with `DatePicker`, `Select`, `TextArea` | retirement date (default today, not in future); reason (`Select` from `/retirement-reasons`); note (`TextArea`, required when reason is OTHER); shows warning with count of valid licenses that will be revoked |
@@ -212,3 +216,11 @@ Every error response is formatted as `application/problem+json`. All endpoints r
     when `GET /api/vessels/{id}` is called, then it returns 200 OK with the retirement details;
     and when a license issuance, ownership transfer, or update (`PUT`) is submitted for that vessel,
     then the request is refused with 409 Conflict ("vessel is retired").
+
+17. **Only a license that is not yet valid (`NOT_YET_VALID`) can be deleted.**
+    Given a license with `issued_on` in the future (`effectiveStatus = NOT_YET_VALID`),
+    when `DELETE /api/vessels/{id}/licenses/{licenseId}` is called,
+    then the license is soft-deleted (204 No Content) and no longer appears in the vessel's license list;
+    and given a license whose `effectiveStatus` is `VALID`, `EXPIRING_SOON`, `EXPIRED`, or `REVOKED`,
+    when `DELETE /api/vessels/{id}/licenses/{licenseId}` is called,
+    then the deletion is refused with 409 Conflict so that active and historical licenses stay in the audit trail.

@@ -16,7 +16,8 @@ A license is only useful if its status is clear at a glance. Validity is not sto
 - A vessel's detail view shows whether it currently holds at least one valid license of each type it has ever been issued.
 - An officer can revoke a valid license with a revocation date and a non-blank reason.
 - Revoking an already expired or already revoked license is refused with a conflict error (409); a blank reason or invalid date is refused with a validation error (400).
-- Revoked and expired licenses are never deleted; they remain visible in the vessel's complete license history.
+- An officer can delete (cancel) a license that is *Not yet valid* (`issued_on` in the future) if it was entered by mistake or withdrawn before taking effect.
+- Revoked, expired, and currently valid licenses can never be deleted (attempts are refused with a 409 Conflict); they remain visible in the vessel's complete license history.
 - An "Expiring licenses" list shows all licenses expiring within a chosen number of days (default 30, configurable 1–365), with vessel name, registry code, license number, type, and expiration date, sorted soonest first.
 - The expiring list is filterable by license type.
 - Licenses of retired (soft-deleted) vessels do not appear in the expiring list.

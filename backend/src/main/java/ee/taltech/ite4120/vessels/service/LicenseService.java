@@ -96,6 +96,27 @@ public class LicenseService {
         return LicenseView.of(licenses.load(licenseId), today);
     }
 
+    /**
+     * Soft-deletes a license that is {@code NOT_YET_VALID} ({@code issued_on > today}).
+     * Licenses that have already entered into force, expired, or been revoked belong
+     * to the permanent audit trail and cannot be deleted (VESSELS.01 § Business test 17).
+     */
+    @Transactional
+    public void delete(Long vesselId, Long licenseId) {
+        vessels.requireActive(vesselId);
+        License l = requireOf(vesselId, licenseId);
+        LocalDate today = VesselTime.today();
+        LicenseEffectiveStatus status =
+                LicenseEffectiveStatus.derive(l.getStatus(), l.getIssuedOn(), l.getValidUntil(), today);
+        if (status != LicenseEffectiveStatus.NOT_YET_VALID) {
+            throw new ConflictException("license",
+                    "only a license that is NOT_YET_VALID can be deleted (current status: " + status + ")");
+        }
+        if (!licenses.delete(licenseId)) {
+            throw new NotFoundException("license " + licenseId + " not found on vessel " + vesselId);
+        }
+    }
+
     /** Licenses expiring within a window, soonest first, active vessels only. */
     public QueryResult<ExpiringLicenseView> expiring(ExpiringLicenseQueryParams params) {
         Integer days = params.getWithinDays();

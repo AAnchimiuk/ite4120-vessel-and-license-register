@@ -41,10 +41,12 @@ The Estonian maritime administration maintains official state records of all wat
    - Unknown vessel types or retirement reasons are rejected with `400 Bad Request`.
    - Build year cannot be in the future (e.g. greater than the current year).
    - Owner personal code must be formatted as exactly 11 numeric characters (stored as a string, never a number).
+   - *Design decision on `isikukood` checksum*: Strict Estonian Modulo-11 (EVS 585) control-digit validation was considered and deliberately omitted so the application remains compatible with the template's mock population registry and seeded demo dataset (`38102130265`, `47503121234`, `50011020017`), in which two of the three synthetic person codes use illustrative trailing digits rather than Modulo-11 check digits.
 3. **License Constraints & Effective Status**:
    - Maritime licenses include a license number, license type, issue date, expiration date (`valid_until`), and status (`ACTIVE` or `REVOKED`).
    - A license whose expiration date precedes its issue date (`valid_until < issued_on`) is refused with `400 Bad Request`.
    - A valid license can be revoked once with a date and reason; revoking an already expired or revoked license is refused with `409 Conflict`.
+   - A scheduled license that has not yet taken effect (`NOT_YET_VALID`, `issued_on > today`) can be cancelled via `DELETE` (`204 No Content`), whereas active, expired, or revoked licenses cannot be deleted (`409 Conflict`).
    - Expiring licenses view excludes retired vessels.
 4. **Ownership Transfer & Registry Verification**:
    - Transferring ownership closes the active period and opens a new period in `vessel_ownership`.

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.helex.commons.model.QueryResult;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,7 +30,7 @@ public class LicenseController {
     @Operation(summary = "Licenses expiring within N days (default 30, 1–365), soonest first, active vessels only")
     @ApiResponse(responseCode = "400", description = "withinDays outside 1–365")
     @GetMapping("/expiring")
-    public QueryResult<ExpiringLicenseView> expiring(@ModelAttribute ExpiringLicenseQueryParams params) {
+    public QueryResult<ExpiringLicenseView> expiring(@ParameterObject @ModelAttribute ExpiringLicenseQueryParams params) {
         return service.expiring(params);
     }
 

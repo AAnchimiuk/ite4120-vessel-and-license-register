@@ -62,6 +62,12 @@ public class LicenseRepository extends BaseRepository {
         return jdbcTemplate.update(sql, revokedOn, reason, id) == 1;
     }
 
+    /** Soft-deletes a license row (used only for licenses that are NOT_YET_VALID). */
+    public boolean delete(Long id) {
+        String sql = "update vessels.license set sys_status = 'D' where id = ? and sys_status = 'A'";
+        return jdbcTemplate.update(sql, id) == 1;
+    }
+
     /**
      * Atomically revokes all currently valid licenses of a vessel upon retirement.
      */

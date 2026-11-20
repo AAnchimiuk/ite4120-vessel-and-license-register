@@ -104,6 +104,22 @@ class VesselApiIT {
                 .contains("API-L1");
         assertThat(call("GET", "/api/licenses/expiring?withinDays=0", null, true).statusCode()).isEqualTo(400);
 
+        // DELETE on a currently valid license -> 409 Conflict
+        assertThat(call("DELETE", "/api/vessels/" + id + "/licenses/" + licenseId, null, true).statusCode())
+                .isEqualTo(409);
+
+        // Scheduled future license (NOT_YET_VALID) -> DELETE answers 204 No Content
+        HttpResponse<String> futureLic = call("POST", "/api/vessels/" + id + "/licenses", """
+                {"licenseNumber":"API-L-FUTURE","licenseType":"FISHING",
+                 "issuedOn":"%s","validUntil":"%s"}""".formatted(LocalDate.now().plusDays(15), LocalDate.now().plusDays(365)), true);
+        assertThat(futureLic.statusCode()).isEqualTo(201);
+        assertThat(futureLic.body()).contains("NOT_YET_VALID");
+        String futureLicenseId = idOf(futureLic.body());
+        assertThat(call("DELETE", "/api/vessels/" + id + "/licenses/" + futureLicenseId, null, true).statusCode())
+                .isEqualTo(204);
+        assertThat(call("GET", "/api/vessels/" + id + "/licenses/" + futureLicenseId, null, true).statusCode())
+                .isEqualTo(404);
+
         String revoke = "{\"revokedOn\":\"" + LocalDate.now() + "\",\"reason\":\"Failed inspection\"}";
         HttpResponse<String> revoked = call("POST", "/api/vessels/" + id + "/licenses/" + licenseId + "/revocation", revoke, true);
         assertThat(revoked.statusCode()).isEqualTo(200);
@@ -123,8 +139,17 @@ class VesselApiIT {
         HttpResponse<String> read = call("GET", "/api/vessels/" + id, null, true);
         assertThat(read.statusCode()).isEqualTo(200);
         assertThat(read.body()).contains("SCRAPPED");
-        assertThat(call("POST", "/api/vessels", """
-                {"registryCode":"API-001","name":"Reborn","typeCode":"TUG"}""", true).statusCode()).isEqualTo(201);
+        HttpResponse<String> reborn = call("POST", "/api/vessels", """
+                {"registryCode":"API-001","name":"Reborn","typeCode":"TUG"}""", true);
+        assertThat(reborn.statusCode()).isEqualTo(201);
+        String rebornId = idOf(reborn.body());
+
+        // DELETE /api/vessels/{id} -> 204 No Content (soft-delete retirement), second DELETE -> 409
+        assertThat(call("DELETE", "/api/vessels/" + rebornId + "?reason=LOST", null, true).statusCode())
+                .isEqualTo(204);
+        assertThat(call("DELETE", "/api/vessels/" + rebornId, null, true).statusCode())
+                .isEqualTo(409);
+        assertThat(call("GET", "/api/vessels/" + rebornId, null, true).body()).contains("LOST");
 
         // unknown vessel -> 404 problem+json
         assertThat(call("GET", "/api/vessels/999999999", null, true).statusCode()).isEqualTo(404);

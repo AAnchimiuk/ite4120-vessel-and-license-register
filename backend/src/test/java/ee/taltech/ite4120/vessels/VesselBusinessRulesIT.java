@@ -467,6 +467,35 @@ class VesselBusinessRulesIT {
         assertThatThrownBy(() -> vessels.require(-1L)).isInstanceOf(NotFoundException.class);
     }
 
+    // 17 ------------------------------------------------------------------------
+    @Test
+    void onlyALicenseThatIsNotYetValidCanBeDeleted() {
+        Vessel v = vessels.create(vessel("BR-DEL-001"));
+        LicenseView future = licenses.add(v.getId(),
+                license("D-FUT", "NAVIGATION", today.plusDays(10), today.plusYears(1)));
+        LicenseView valid = licenses.add(v.getId(),
+                license("D-VAL", "FISHING", today.minusDays(5), today.plusDays(90)));
+        LicenseView expired = licenses.add(v.getId(),
+                license("D-EXP", "SAFETY", today.minusYears(2), today.minusDays(1)));
+
+        // Active and expired licenses belong to the audit trail — cannot be deleted (409)
+        assertThatThrownBy(() -> licenses.delete(v.getId(), valid.id()))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("NOT_YET_VALID");
+        assertThatThrownBy(() -> licenses.delete(v.getId(), expired.id()))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("NOT_YET_VALID");
+
+        // A future (NOT_YET_VALID) license can be soft-deleted
+        licenses.delete(v.getId(), future.id());
+        assertThat(licenses.list(v.getId())).extracting(LicenseView::licenseNumber)
+                .containsExactlyInAnyOrder("D-VAL", "D-EXP");
+
+        // Deleting it again -> 404
+        assertThatThrownBy(() -> licenses.delete(v.getId(), future.id()))
+                .isInstanceOf(NotFoundException.class);
+    }
+
     // helpers -------------------------------------------------------------------
 
     private static LicenseView byNumber(List<LicenseView> list, String number) {
