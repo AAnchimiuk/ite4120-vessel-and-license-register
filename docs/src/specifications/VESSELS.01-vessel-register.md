@@ -87,6 +87,7 @@ Both `VALID` and `EXPIRING_SOON` count as **currently valid**.
 | `GET /api/vessels/{id}/ownership` | list ownership history periods, newest `ownedFrom` first | 404 |
 | `GET /api/vessels/{id}/ownership/{ownershipId}/owner` | owner full name and address for a specific historical ownership period (fail open) | 404 · 502 registry down |
 | `GET /api/vessels/{id}/licenses` | all licenses of the vessel (history), each with `effectiveStatus`; newest `issuedOn` first | 404 |
+| `GET /api/vessels/{id}/licenses/{licenseId}` | one license of the vessel, with `effectiveStatus` (target of the `Location` header) | 404 |
 | `POST /api/vessels/{id}/licenses` | issue new license: body `{ licenseNumber, licenseType, issuedOn, validUntil }`; answers **201 + Location** | 400 validation (validUntil < issuedOn) · 404 · 409 vessel retired |
 | `POST /api/vessels/{id}/licenses/{licenseId}/revocation` | revoke a currently valid license: body `{ revokedOn, reason }`; answers **200** with updated license | 400 validation · 404 · 409 not currently valid or vessel retired |
 | `GET /api/licenses/expiring` | paged list: `withinDays` (default 30, 1–365), `licenseType`, `limit`, `offset`; sorted `validUntil` ascending; active vessels only | 400 bad `withinDays` |

@@ -64,6 +64,11 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // Show every test as it finishes (PASSED / FAILED / SKIPPED) in the terminal.
+    testLogging {
+        events("passed", "failed", "skipped")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }
 
 springBoot {

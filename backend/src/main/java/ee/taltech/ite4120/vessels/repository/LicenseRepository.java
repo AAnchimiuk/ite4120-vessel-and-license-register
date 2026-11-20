@@ -74,8 +74,9 @@ public class LicenseRepository extends BaseRepository {
                  where vessel_id = ?
                    and status = 'ACTIVE'
                    and valid_until >= ?
+                   and issued_on <= ?
                    and sys_status = 'A'""";
-        return jdbcTemplate.update(sql, revokedOn, reason, vesselId, asOfDate);
+        return jdbcTemplate.update(sql, revokedOn, reason, vesselId, asOfDate, revokedOn);
     }
 
     /**
