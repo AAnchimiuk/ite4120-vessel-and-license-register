@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+  http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+  <include file="vessels/db/changelog/vessels/vessels-schema.sql"/>
+  <include file="vessels/db/changelog/vessels/01-vessel-type.sql"/>
+  <include file="vessels/db/changelog/vessels/02-retirement-reason.sql"/>
+  <include file="vessels/db/changelog/vessels/03-vessel.sql"/>
+  <include file="vessels/db/changelog/vessels/04-license.sql"/>
+  <include file="vessels/db/changelog/vessels/05-vessel-ownership.sql"/>
+  <include file="vessels/db/changelog/vessels/90-demo-data.sql"/>
+
+</databaseChangeLog>
