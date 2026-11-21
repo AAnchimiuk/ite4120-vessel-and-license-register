@@ -294,10 +294,11 @@ class VesselBusinessRulesIT {
 
         assertThatThrownBy(() -> ownership.transfer(v.getId(), OWNER_B, today.plusDays(1)))
                 .as("future date").isInstanceOf(ApiClientException.class);
-        assertThatThrownBy(() -> ownership.transfer(v.getId(), OWNER_B, today.minusDays(10)))
-                .as("not after the open period started").isInstanceOf(ApiClientException.class);
         assertThatThrownBy(() -> ownership.transfer(v.getId(), OWNER_B, today.minusDays(20)))
                 .as("before the open period started").isInstanceOf(ApiClientException.class);
+        // Same-day transfer (transferDate == owned_from) is allowed by US-003, VESSELS.01 and DB constraint
+        assertThat(ownership.transfer(v.getId(), OWNER_B, today.minusDays(10)).getOwnerIsikukood())
+                .isEqualTo(OWNER_B);
     }
 
     @Test

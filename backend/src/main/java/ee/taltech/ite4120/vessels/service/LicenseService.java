@@ -79,9 +79,6 @@ public class LicenseService {
         if (revokedOn.isAfter(today)) {
             throw new ApiClientException("revokedOn must not be in the future");
         }
-        if (revokedOn.isBefore(l.getIssuedOn())) {
-            throw new ApiClientException("revokedOn must not precede issuedOn");
-        }
         LicenseEffectiveStatus status =
                 LicenseEffectiveStatus.derive(l.getStatus(), l.getIssuedOn(), l.getValidUntil(), today);
         if (status == LicenseEffectiveStatus.REVOKED) {
@@ -89,6 +86,9 @@ public class LicenseService {
         }
         if (!status.isCurrentlyValid()) {
             throw new ConflictException("license", "license is not currently valid (" + status + ")");
+        }
+        if (revokedOn.isBefore(l.getIssuedOn())) {
+            throw new ApiClientException("revokedOn must not precede issuedOn");
         }
         if (!licenses.revoke(licenseId, revokedOn, reason.trim())) {
             throw new ConflictException("license", "license is already revoked");

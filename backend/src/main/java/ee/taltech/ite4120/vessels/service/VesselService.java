@@ -171,8 +171,19 @@ public class VesselService {
     }
 
     private void validate(Vessel v) {
-        if (v.getBuildYear() != null && v.getBuildYear() > VesselTime.today().getYear()) {
-            throw new ApiClientException("buildYear must not be in the future");
+        if (v.getBuildYear() != null) {
+            if (v.getBuildYear() > VesselTime.today().getYear()) {
+                throw new ApiClientException("buildYear must not be in the future");
+            }
+            if (v.getBuildYear() < 1800) {
+                throw new ApiClientException("buildYear must be at least 1800");
+            }
+        }
+        if (v.getGrossTonnage() != null && v.getGrossTonnage().signum() <= 0) {
+            throw new ApiClientException("grossTonnage must be positive");
+        }
+        if (v.getOwnerIsikukood() != null && !v.getOwnerIsikukood().matches("\\d{11}")) {
+            throw new ApiClientException("ownerIsikukood must be exactly 11 digits");
         }
         if (v.getTypeCode() == null || !vessels.vesselTypeExists(v.getTypeCode())) {
             throw new ApiClientException("unknown typeCode: " + v.getTypeCode());

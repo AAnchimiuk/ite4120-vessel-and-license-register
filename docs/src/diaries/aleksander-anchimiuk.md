@@ -109,6 +109,48 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 #### 2. What I asked the AI agent
 * "I want to merge that 4 specification files about vessel register into one file. I want to have this info consistent also with vessels user stories"
 
+---
+
+### Entry 4: Database Layer Testing, Backend API Implementation & Specification Re-validation
+
+* **Date**: 2026-11-20 – 2026-11-21
+* **Duration**: 6.0 hours
+* **Target Milestone**: Sessions 2 & 3 — Testing the database layer created by Rocio, implementing the backend services and REST API with Mock X-Road integration, business/API tests, and specification re-validation.
+
+#### 1. What was done
+1. **Verification & Testing of the Database Layer (implemented by Rocio)**:
+   * Reviewed the `vessels` database layer, Liquibase changesets, models, and repositories prepared by teammate Rocio.
+   * Created [VesselDataLayerIT.java](../../../backend/src/test/java/ee/taltech/ite4120/vessels/VesselDataLayerIT.java) (16 Testcontainers integration tests verifying schema migrations, reference seeds, `sys_*` trigger metadata, partial unique index reuse after soft-delete, CHECK/FK constraints, search/filter/sort, license revocation, expiring list exclusions, and ownership periods).
+   * Created [LicenseEffectiveStatusTest.java](../../../backend/src/test/java/ee/taltech/ite4120/vessels/LicenseEffectiveStatusTest.java) (4 unit tests covering dynamic status derivation and 0/30/31-day boundary dates).
+   * Documented database and backend testing workflows in [README.md](../../../README.md) and enabled per-test terminal output in `backend/build.gradle.kts`.
+2. **Backend Services, REST API & Mock X-Road Integration**:
+   * Implemented business services (`VesselService`, `LicenseService`, `OwnershipService`), DTO views (`LicenseView`, `LicenseType`), and HTTP-only controllers (`VesselController`, `VesselLicenseController`, `OwnershipController`, `LicenseController`) covering all 17 endpoints across `GET`, `POST`, `PUT`, and `DELETE`.
+   * Integrated with `OwnerRegistryAdapter` (talking to the built-in `/mock-registry` locally and `forge-xroad` in `xroad` mode): enforced **fail-open** on owner read lookups (`GET /api/vessels/{id}/owner` and `GET /api/vessels/{id}/ownership/{ownershipId}/owner`) and **fail-closed** on ownership transfers (`POST /api/vessels/{id}/ownership`).
+   * Created [VesselBusinessRulesIT.java](../../../backend/src/test/java/ee/taltech/ite4120/vessels/VesselBusinessRulesIT.java) (32 service-level business tests with Mockito registry simulation) and [VesselApiIT.java](../../../backend/src/test/java/ee/taltech/ite4120/vessels/VesselApiIT.java) (4 end-to-end HTTP lifecycle tests against `/mock-registry`), reaching **61 passing tests** in total.
+3. **Manual Swagger UI Testing, Specification Re-validation & Refinements**:
+   * Booted PostgreSQL and the backend locally (`./scripts/run-backend.sh`) and tested endpoints interactively via Swagger UI (`http://localhost:18440/swagger-ui.html`).
+   * **Estonian `isikukood` Modulo-11 evaluation**: Verified whether the template's mock population registry codes (`38102130265`, `47503121234`, `50011020017`) pass the official EVS 585 Modulo-11 control-digit algorithm. Discovered that `38102130265` (remainder `6`) and `47503121234` (remainder `9`) use synthetic trailing digits; documented the design decision in [VESSELS.01-vessel-register.md](../specifications/VESSELS.01-vessel-register.md) and [README.md](../../../README.md) to retain 11-digit format validation (`^\d{11}$`) plus live registry verification.
+   * **HTTP `DELETE` alignment**: Unified vessel retirement under REST soft-delete `DELETE /api/vessels/{id}` (`204 No Content`, removing the duplicate `POST /retirement` endpoint) and added `DELETE /api/vessels/{id}/licenses/{licenseId}` (`204 No Content`, plus `LicenseRepository.delete`) for cancelling scheduled `NOT_YET_VALID` licenses while protecting active/expired/revoked licenses with `409 Conflict` (updated [VESSELS-US-002.md](../user-stories/VESSELS-US-002.md) and Business Test 17 in `VESSELS.01`).
+   * **Swagger UI polish**: Added `@ParameterObject` to query DTOs and updated [OpenApiConfig.java](../../../backend/src/main/java/ee/taltech/ite4120/config/OpenApiConfig.java) so Swagger UI displays `"Vessel and License Register — ITE4120"` as its main title and separates `Vessel and License Register (vessels)` (default view) from `Animals Register (course template)` (background reference package).
+
+#### 2. What I asked the AI agent
+* "I want to do testing of created database layer... more details should be in readme what to use to do testing"
+* "my next task is to create backend for vessels application according to the documented specification and database layer. also i need to have in mind that my app should talk with mock x-road interface"
+* "please run that tests i want to see in terminal how it looks like when testing is being done"
+* "please run database and backend i want to talk to it and test with swagger"
+* Asked why Swagger UI returned empty data when default placeholder parameters were submitted, how `owner_isikukood` avoids storing personal details locally, whether Estonian `isikukood` checksum validation could be added, and requested a full consistency audit between User Stories, Specification, Database, and API (including `GET`, `POST`, `PUT`, `DELETE` and Swagger UI title/package grouping).
+
+#### 3. What the agent got wrong / Pitfalls encountered
+* **`QueryParams.setSort` signature**: In `VesselDataLayerIT`, `setSort("passwordHash")` initially failed to compile because the Helex `QueryParams.setSort` method takes `List<String>` rather than a single `String`.
+* **Cascading license revocation constraint on retirement**: `LicenseRepository.revokeAllValidForVessel` initially filtered only by `valid_until >= asOfDate`; if a vessel held a future-issued license (`issued_on > revoked_on`), revoking it violated `license_revoked_chk` (`revoked_on >= issued_on`).
+* **Swagger UI `@ModelAttribute` default placeholders**: Without `@ParameterObject`, SpringDoc rendered `VesselQueryParams` in Swagger UI as a single JSON input pre-populated with `"textContains": "string"`, `"typeCode": "string"`, `"retired": true`, and `"limit": 0`, which caused "Try it out" to return an empty list until cleared.
+* **Same-day ownership transfer boundary**: `OwnershipService.transfer` initially checked `!transferDate.isAfter(current.getOwnedFrom())` (`>`), which prevented transferring a vessel on the same day it was registered (`owned_from = today`), even though `VESSELS-US-003`, `VESSELS.01`, and the SQL constraint `vessel_ownership_dates_chk` allow `owned_until >= owned_from`.
+
+#### 4. How it was corrected
+* Updated the test call to `p.setSort(List.of("passwordHash"))`.
+* Added `and issued_on <= ?` to `LicenseRepository.revokeAllValidForVessel` and `and l.issued_on <= ?` to `countExpiring`/`listExpiring`.
+* Annotated `@ModelAttribute` parameters with `@ParameterObject` in `VesselController` and `LicenseController` so Swagger UI renders individual empty form fields.
+* Aligned `OwnershipService.transfer` to check `transferDate.isBefore(current.getOwnedFrom())`, matching the specification and SQL constraint and allowing same-day transfers.
 
 ---
 
@@ -119,5 +161,6 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 | Session 1: Environment verification, token configuration, template test, docs draft | 2026-10-07 | 2.5 h |
 | Session 1: Team synchronization call (technicalities, next steps, action items) | 2026-10-22 | 1.0 h |
 | Session 3: Specification consolidation & backlog alignment (team meeting on 12.11) | 2026-11-12 | 0.5 h |
-| **Total** | | **4.0 h** |
+| Sessions 2 & 3: Database layer testing, backend API, Mock X-Road integration & re-validation | 2026-11-20 – 2026-11-21 | 6.0 h |
+| **Total** | | **10.0 h** |
 

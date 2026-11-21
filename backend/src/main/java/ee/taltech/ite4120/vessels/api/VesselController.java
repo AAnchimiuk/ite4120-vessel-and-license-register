@@ -70,21 +70,13 @@ public class VesselController {
         return service.update(id, body.toModel());
     }
 
-    @Operation(summary = "Retire a vessel — soft delete with date and reason; revokes every currently valid license")
-    @ApiResponse(responseCode = "200", description = "The retired vessel")
-    @ApiResponse(responseCode = "409", description = "Already retired")
-    @PostMapping("/{id}/retirement")
-    public Vessel retire(@PathVariable Long id, @Valid @RequestBody RetirementRequest body) {
-        return service.retire(id, body.retiredOn(), body.reason(), body.note());
-    }
-
-    @Operation(summary = "Retire a vessel (REST soft delete, 204 No Content) — defaults to today and reason SCRAPPED")
+    @Operation(summary = "Retire a vessel (soft delete, 204 No Content) — records date, reason and note, and revokes every currently valid license")
     @ApiResponse(responseCode = "204", description = "Retired (soft-deleted)")
     @ApiResponse(responseCode = "400", description = "Validation failed (future date, unknown reason, OTHER without note)")
     @ApiResponse(responseCode = "404", description = "No such vessel")
     @ApiResponse(responseCode = "409", description = "Already retired")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
+    public ResponseEntity<Void> retire(
             @PathVariable Long id,
             @RequestParam(required = false) LocalDate retiredOn,
             @RequestParam(defaultValue = "SCRAPPED") String reason,

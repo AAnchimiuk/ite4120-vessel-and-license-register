@@ -86,12 +86,16 @@ class VesselApiIT {
                 "{\"newOwnerIsikukood\":\"11111111111\",\"transferDate\":\"" + LocalDate.now() + "\"}", true)
                 .statusCode()).isEqualTo(400);
 
-        // transfer to Mari Kask -> 201; the vessel started its ownership today, so use today's date? it must be AFTER
-        // the open period start, so first back-date is impossible: expect 400 for today, then it works tomorrow-less.
-        HttpResponse<String> sameDay = call("POST", "/api/vessels/" + id + "/ownership",
+        // transfer before current ownership started (yesterday < today) -> 400
+        assertThat(call("POST", "/api/vessels/" + id + "/ownership",
+                "{\"newOwnerIsikukood\":\"47503121234\",\"transferDate\":\"" + yesterday + "\"}", true)
+                .statusCode()).isEqualTo(400);
+
+        // transfer to Mari Kask today (on or after current period start) -> 201 Created
+        HttpResponse<String> transferred = call("POST", "/api/vessels/" + id + "/ownership",
                 "{\"newOwnerIsikukood\":\"47503121234\",\"transferDate\":\"" + LocalDate.now() + "\"}", true);
-        assertThat(sameDay.statusCode()).as("not after the period that opened today").isEqualTo(400);
-        assertThat(yesterday).isBefore(LocalDate.now());
+        assertThat(transferred.statusCode()).isEqualTo(201);
+        assertThat(call("GET", "/api/vessels/" + id + "/owner", null, true).body()).contains("Mari", "Kask");
 
         // license: add, list with derived status, revoke, revoke again
         HttpResponse<String> lic = call("POST", "/api/vessels/" + id + "/licenses", """
@@ -129,10 +133,10 @@ class VesselApiIT {
         assertThat(call("POST", "/api/vessels/" + id + "/licenses/" + licenseId + "/revocation",
                 "{\"revokedOn\":\"" + LocalDate.now() + "\",\"reason\":\"  \"}", true).statusCode()).isEqualTo(400);
 
-        // retire -> 200; second retire -> 409; frozen -> 409; still readable; code reusable
-        String retire = "{\"retiredOn\":\"" + LocalDate.now() + "\",\"reason\":\"SCRAPPED\"}";
-        assertThat(call("POST", "/api/vessels/" + id + "/retirement", retire, true).statusCode()).isEqualTo(200);
-        assertThat(call("POST", "/api/vessels/" + id + "/retirement", retire, true).statusCode()).isEqualTo(409);
+        // retire via DELETE -> 204; second retire -> 409; frozen -> 409; still readable; code reusable
+        assertThat(call("DELETE", "/api/vessels/" + id + "?retiredOn=" + LocalDate.now() + "&reason=SCRAPPED", null, true)
+                .statusCode()).isEqualTo(204);
+        assertThat(call("DELETE", "/api/vessels/" + id + "?reason=SCRAPPED", null, true).statusCode()).isEqualTo(409);
         assertThat(call("POST", "/api/vessels/" + id + "/licenses", """
                 {"licenseNumber":"X","licenseType":"NAVIGATION","issuedOn":"2026-01-01","validUntil":"2027-01-01"}""", true)
                 .statusCode()).isEqualTo(409);
@@ -144,12 +148,12 @@ class VesselApiIT {
         assertThat(reborn.statusCode()).isEqualTo(201);
         String rebornId = idOf(reborn.body());
 
-        // DELETE /api/vessels/{id} -> 204 No Content (soft-delete retirement), second DELETE -> 409
-        assertThat(call("DELETE", "/api/vessels/" + rebornId + "?reason=LOST", null, true).statusCode())
+        // DELETE /api/vessels/{id} with OTHER and missing note -> 400; with note -> 204
+        assertThat(call("DELETE", "/api/vessels/" + rebornId + "?reason=OTHER", null, true).statusCode())
+                .isEqualTo(400);
+        assertThat(call("DELETE", "/api/vessels/" + rebornId + "?reason=OTHER&note=Sold+abroad", null, true).statusCode())
                 .isEqualTo(204);
-        assertThat(call("DELETE", "/api/vessels/" + rebornId, null, true).statusCode())
-                .isEqualTo(409);
-        assertThat(call("GET", "/api/vessels/" + rebornId, null, true).body()).contains("LOST");
+        assertThat(call("GET", "/api/vessels/" + rebornId, null, true).body()).contains("OTHER", "Sold abroad");
 
         // unknown vessel -> 404 problem+json
         assertThat(call("GET", "/api/vessels/999999999", null, true).statusCode()).isEqualTo(404);

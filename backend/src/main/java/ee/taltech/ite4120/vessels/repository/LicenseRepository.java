@@ -105,6 +105,7 @@ public class LicenseRepository extends BaseRepository {
                  where v.sys_status = 'A'
                    and l.sys_status = 'A'
                    and l.status = 'ACTIVE'""");
+        sb.append("and l.issued_on <= ?", today);
         sb.append("and l.valid_until >= ?", today);
         sb.append("and l.valid_until <= ?", cutoff);
         sb.appendIfNotNull("and l.license_type = ?", p.getLicenseType());
@@ -126,6 +127,7 @@ public class LicenseRepository extends BaseRepository {
                  where v.sys_status = 'A'
                    and l.sys_status = 'A'
                    and l.status = 'ACTIVE'""");
+        sb.append("and l.issued_on <= ?", today);
         sb.append("and l.valid_until >= ?", today);
         sb.append("and l.valid_until <= ?", cutoff);
         sb.appendIfNotNull("and l.license_type = ?", p.getLicenseType());

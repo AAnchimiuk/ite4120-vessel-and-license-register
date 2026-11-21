@@ -61,8 +61,8 @@ public class OwnershipService {
             throw new ApiClientException("transferDate must not be in the future");
         }
         VesselOwnership current = ownerships.loadCurrentByVesselId(vesselId);
-        if (current != null && !transferDate.isAfter(current.getOwnedFrom())) {
-            throw new ApiClientException("transferDate must be after the current ownership started ("
+        if (current != null && transferDate.isBefore(current.getOwnedFrom())) {
+            throw new ApiClientException("transferDate must not be before the current ownership started ("
                     + current.getOwnedFrom() + ")");
         }
 
