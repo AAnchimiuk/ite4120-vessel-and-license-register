@@ -87,10 +87,63 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 
 ---
 
+### Entry 3: Local environment setup and API testing (vessels)
+
+- **Date**: 2026-11-21
+- **Duration**: <3> hours
+- **Target Milestone**: Session 4 — Run the application locally and verify the vessels API against the specification.
+
+#### 1. What was done
+
+1. **Toolchain installation (Windows)**:
+    - Ran `scripts\setup-tools.ps1` in PowerShell as Administrator; Chocolatey installed Git, GitHub CLI, Temurin JDK 25, Node.js LTS and Python.
+    - Docker Desktop failed through Chocolatey (exit code 1603); installed it with the official AMD64 installer instead (WSL 2 backend).
+2. **Repository location**:
+    - Moved the clone out of OneDrive to local file to avoid sync and file-lock problems with npm and Gradle.
+3. **GitHub Packages token**:
+    - Created a classic token with `read:packages` only; replaced it with a new one after part of it was accidentally shared.
+    - Configured it for Gradle 
+4. **Running the backend**:
+    - Started PostgreSQL and the Spring Boot backend with `scripts\run-backend.ps1`; confirmed `Started Application in 8.657 seconds`.
+    - Opened Swagger UI at `http://localhost:18440/swagger-ui.html` and selected the **Vessel and License Register (vessels)** definition.
+    - Confirmed the frontend so far contains only the Animals template pages; the vessels UI is still to be built.
+5. **API testing — section 1 (Vessels, VESSELS-US-001)**:
+    - Ran the vessel tests in Swagger: list, search by name, filter by type, list retired vessels, single vessel, live owner lookup via the mock registry, registration (201), duplicate registry code (409), build year in the future (400) and malformed personal code (400).
+    - Results: <all as expected / list any deviations>.
+
+#### 2. What I asked the AI agent
+
+- Step-by-step explanations to run the application
+- Help with moving the repository and renaming the folder
+- Help with the GitHub token, including deleting and regenerating it
+- Asked for the instructions on how to test the API-s
+
+#### 3. What the agent got wrong / Pitfalls encountered
+
+- **Docker install failed** (Chocolatey exit code 1603) — pending reboot and WSL 2 setup.
+- **PowerShell execution policy** blocked `npm.ps1` ("running scripts is disabled on this system").
+- **Token check command**: the agent suggested `npm config get` to verify the token, but npm refuses to print protected tokens.
+- **401 Unauthorized from Gradle**: a trailing space in `gradle.properties` made the token invalid.
+- **Missing frontend**: the agent first assumed a frontend would be started, but the repository has only the Animals example pages; the README describes vessels UI that does not exist yet.
+- **Swagger definitions**: the vessels endpoints did not appear because Swagger opened on the Animals definition; the agent first said the sections were only collapsed.
+- **Spec vs code mismatch**: the specification says `POST /api/vessels/{id}/retirement`, but the code retires a vessel with `DELETE /api/vessels/{id}` and query parameters.
+
+#### 4. How it was corrected
+
+- Rebooted, installed Docker Desktop with the official installer and confirmed it runs.
+- Ran `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.
+- Verified the npm token with `npm config list --global` (shows `(protected)`) instead.
+- Retyped `gradle.properties` without spaces and stopped old Gradle daemons with `gradlew.bat --stop`.
+- Switched Swagger to the **Vessel and License Register (vessels)** definition.
+- Open items: align the retirement endpoint between spec and code; continue API testing with sections 2–4 (licenses, ownership, retirement); build the vessels frontend pages.
+
+---
+
 ### Time Summary
 
 | Milestone / Task                                                              | Date       | Hours       |
 |:------------------------------------------------------------------------------|:-----------|:------------|
-| Session 2: BABOK template, user story drafts, comparison, VESSELS-US-002       | 2026-10-16 | 1 h       |
-| Session 3: VESSELS-US-003/004, specifications VESSELS.02–04, diary            | 2026-11-06 | 1 h       |
-| **Total**                                                                     |            | **2 h**   |
+| Session 2: BABOK template, user story drafts, comparison, VESSELS-US-002       | 2026-10-16 | <1> h       |
+| Session 3: VESSELS-US-003/004, specifications VESSELS.02–04, diary            | 2026-11-06 | <1> h       |
+| Session 4: Local setup (tools, Docker, token), backend run, vessels API tests  | 2026-11-21 | <3> h       |
+| **Total**                                                                     |            | **<5> h**   |
