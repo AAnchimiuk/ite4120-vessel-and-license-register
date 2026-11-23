@@ -90,7 +90,7 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 ### Entry 3: Local environment setup and API testing (vessels)
 
 - **Date**: 2026-11-21
-- **Duration**: <3> hours
+- **Duration**: 3 hours
 - **Target Milestone**: Session 4 — Run the application locally and verify the vessels API against the specification.
 
 #### 1. What was done
@@ -139,11 +139,54 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 
 ---
 
+### Entry 4: Vessels frontend
+
+- **Date**: 2026-11-23
+- **Duration**: <X> hours
+- **Target Milestone**: Session 4 — UI for the vessels component (VESSELS.01 § UI).
+
+#### 1. What was done
+
+1. **Frontend pages** (React + `@helex/ui`, following the Animals example):
+    - `pages/vessels/VesselList.tsx` — `ResourceList` with search by name or registry code, filters for vessel type and Active / Retired, owner details in the side panel (fail open).
+    - `pages/vessels/VesselCreate.tsx` — registration form.
+    - `pages/vessels/VesselDetail.tsx` — `ResourceForm` view/edit, retired banner, metadata sidebar, Retire vessel action.
+    - `pages/vessels/LicensesCard.tsx` — license history with effective status, compliance summary per type, add / revoke / delete (scheduled only).
+    - `pages/vessels/OwnershipCard.tsx` — ownership history with live owner names, transfer dialog (fail closed).
+    - `pages/vessels/RetireModal.tsx` — date, reason, note (required for OTHER), warning with the number of valid licenses to be revoked.
+    - `pages/licenses/ExpiringLicenses.tsx` — licenses expiring within N days, filter by type.
+    - `vesselsApi.ts` (API client), routes in `App.tsx`, app name changed to "Vessel and License Register".
+2. **Verification**: `npx tsc -b` passed; tested in the browser — search, owner panel, add license (incl. "valid until before issue date" refused), revoke, transfer (incl. unknown person refused), retirement, retired filter, reuse of registry code EST-5005.
+3. **Spec**: VESSELS.01 § UI updated where the implementation differs.
+4. **Pull request** #2 `feature/vessels-frontend` → `main`, review requested from AAnchimiuk.
+
+#### 2. What I asked the AI agent
+
+- Let's create a frotend now
+- Step-by-step help with branch, `npm install`, typecheck, running the frontend, testing, commit and pull request
+
+#### 3. What the agent got wrong / Pitfalls encountered
+
+- **Retire button not visible**: `ResourceForm` puts the delete action in the "…" menu, so it was hard to find.
+- **Edit button on retired vessels**: first shown an error on click instead of being hidden; the first fix did not reach the local files and had to be saved again.
+- **Spec differences**: register form uses `AppCard` + `Form` instead of `ResourceForm`; transfer dialog has no live owner preview (the API has no lookup for an arbitrary personal code); navigation uses buttons instead of a top menu.
+- **Checks not running**: GitHub Actions are disabled on this fork, so the Verify checks did not run on the pull request.
+
+#### 4. How it was corrected
+
+- Added a visible "Retire vessel" button in the sidebar; Edit and Retire are hidden for retired vessels (`onEdit` / `onDelete` left out).
+- Re-saved the file and confirmed with a second typecheck.
+- Updated VESSELS.01 § UI to match the implementation (Process Rule 3).
+- Open items: team decision on enabling Actions; review and merge of PR #2.
+
+---
+
 ### Time Summary
 
 | Milestone / Task                                                              | Date       | Hours       |
 |:------------------------------------------------------------------------------|:-----------|:------------|
-| Session 2: BABOK template, user story drafts, comparison, VESSELS-US-002       | 2026-10-16 | <1> h       |
-| Session 3: VESSELS-US-003/004, specifications VESSELS.02–04, diary            | 2026-11-06 | <1> h       |
-| Session 4: Local setup (tools, Docker, token), backend run, vessels API tests  | 2026-11-21 | <3> h       |
-| **Total**                                                                     |            | **<5> h**   |
+| Session 1: BABOK template, user story drafts, comparison, VESSELS-US-002       | 2026-10-16 | 1 h       |
+| Session 2: VESSELS-US-003/004, specifications VESSELS.02–04, diary            | 2026-11-06 | 1 h       |
+| Session 3: Local setup (tools, Docker, token), backend run, vessels API tests  | 2026-11-21 | 3 h       |
+| Session 4: Vessels frontend, browser testing, pull request #2                  | 2026-11-23 | 3 h         |
+| **Total**                                                                     |            | **8 h**   |
