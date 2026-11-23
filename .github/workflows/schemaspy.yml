@@ -67,8 +67,26 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GPR_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          ./gradlew bootRun --console=plain \
-            --args="--spring.main.web-application-type=none"
+          ./gradlew bootRun --console=plain > /tmp/bootrun.log 2>&1 &
+          APP_PID=$!
+          for i in $(seq 1 90); do
+            if curl -fsS http://localhost:18440/actuator/health >/dev/null 2>&1; then
+              echo "Backend started and all Liquibase migrations applied!"
+              kill "$APP_PID" || true
+              wait "$APP_PID" 2>/dev/null || true
+              exit 0
+            fi
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              echo "bootRun exited unexpectedly:"
+              cat /tmp/bootrun.log
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "Timed out waiting for backend to start:"
+          cat /tmp/bootrun.log
+          kill "$APP_PID" || true
+          exit 1
 
       - name: Generate SchemaSpy report for `vessels` schema only
         run: |
