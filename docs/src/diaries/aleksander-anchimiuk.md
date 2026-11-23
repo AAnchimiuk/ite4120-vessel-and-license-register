@@ -154,6 +154,42 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 
 ---
 
+### Entry 5: Frontend Testing & Error Handling, Direct Edit UX, Live Registration Validation & SchemaSpy Visualization
+
+* **Date**: 2026-11-23
+* **Duration**: 3.5 hours
+* **Target Milestone**: Session 4 — Frontend contract & error-handling tests unified in Gradle, direct Edit action on the main vessel list, live X-Road owner validation on vessel registration, code cleanup, and SchemaSpy database visualization.
+
+#### 1. What was done
+1. **Documentation vs. Source Code Consistency & Repository Cleanup**:
+   * Audited all documentation files ([VESSELS.01-vessel-register.md](../specifications/VESSELS.01-vessel-register.md), [VESSELS-US-001.md](../user-stories/VESSELS-US-001.md)–[VESSELS-US-004.md](../user-stories/VESSELS-US-004.md), [README.md](../../../README.md)) against the backend and frontend source code on `feature/vessels-frontend`.
+   * Updated the state of `VESSELS.01` and all four user stories from `Proposed` to `Implemented` and ensured `DELETE /api/vessels/{id}` (`204 No Content` soft delete) is consistently referenced across all sections.
+   * Removed two unused repository methods (`VesselRepository.loadActive(Long)` and `LicenseRepository.listCurrentlyValidByVesselId(...)`) after confirming no service or API endpoint called them.
+2. **Direct `Edit` Button in the Main Vessel List View**:
+   * Added a locked `Actions` column to [VesselList.tsx](../../../frontend/src/pages/vessels/VesselList.tsx) with an **Edit** button (`AppButtonSecondary` with `<EditOutlined />`) for active vessels that navigates directly to `/vessels/{id}?edit=1` (and a **View** button for retired vessels), plus **View details** / **Edit vessel** buttons in the side detail panel.
+   * Updated [VesselDetail.tsx](../../../frontend/src/pages/vessels/VesselDetail.tsx) (`useSearchParams`) so opening `/vessels/{id}?edit=1` enters `ResourceForm` directly in `'edit'` mode for active vessels without requiring an extra click.
+3. **Frontend Automated Testing & Error-Handling Suite Unified in Gradle**:
+   * Created [vesselsApi.test.ts](../../../frontend/src/vesselsApi.test.ts) (13 unit & API contract tests covering `isCurrentlyValid`, `isRetired`, bearer auth headers, query building, `POST`/`PUT`/`DELETE` requests, and RFC 9457 `application/problem+json` error handling across `400`, `404`, `409`, `502`, and non-JSON `503` responses).
+   * Integrated the frontend test suite and TypeScript typecheck (`tsc -b`) directly into Gradle via JUnit 5 `@TestFactory` in [VesselFrontendTest.java](../../../backend/src/test/java/ee/taltech/ite4120/vessels/VesselFrontendTest.java), bringing the unified `./gradlew test` suite to **77 passing tests**.
+4. **Live X-Road Owner Verification on Vessel Registration (`POST /api/vessels` & `PUT /api/vessels/{id}`)**:
+   * Extended [VesselService.java](../../../backend/src/main/java/ee/taltech/ite4120/vessels/service/VesselService.java) (`verifyOwnerExistsInRegistry`) so that providing an `ownerIsikukood` on initial vessel registration (or first-owner assignment via `PUT`) verifies the personal code live against the population registry (`OwnerRegistryAdapter`) before opening a database transaction (**fail-closed**: `400 Bad Request` if the code is not recognized by the registry, `502 Bad Gateway` if the registry is down).
+   * Updated [VESSELS-US-001.md](../user-stories/VESSELS-US-001.md), [VESSELS.01-vessel-register.md](../specifications/VESSELS.01-vessel-register.md), [README.md](../../../README.md), [VesselBusinessRulesIT.java](../../../backend/src/test/java/ee/taltech/ite4120/vessels/VesselBusinessRulesIT.java), and [VesselApiIT.java](../../../backend/src/test/java/ee/taltech/ite4120/vessels/VesselApiIT.java).
+5. **SchemaSpy & Mermaid ER Database Visualization (`vessels` schema only)**:
+   * Added GitHub Actions workflow [schemaspy.yml](../../../.github/workflows/schemaspy.yml) and local helper scripts ([run-schemaspy.sh](../../../scripts/run-schemaspy.sh), [run-schemaspy.ps1](../../../scripts/run-schemaspy.ps1)) running `schemaspy/schemaspy:latest` with `-s vessels` (visualizing strictly the 5 tables of the `vessels` schema, uploading the `schemaspy-vessels-report` artifact, and deploying to GitHub Pages).
+   * Embedded a native Mermaid `erDiagram` of the `vessels` schema directly in [README.md](../../../README.md) and [VESSELS.01-vessel-register.md](../specifications/VESSELS.01-vessel-register.md).
+
+
+#### 3. What the agent got wrong / Pitfalls encountered
+* **TypeScript `.ts` import extension in `vesselsApi.test.ts`**: Node's native `--experimental-strip-types` runner requires the explicit `./vesselsApi.ts` extension on relative imports, which initially caused `tsc -b` to fail with `TS5097` until `"allowImportingTsExtensions": true` was enabled in `frontend/tsconfig.json`.
+* **Substring assertion in `VesselFrontendTest`**: Asserting `.doesNotContain("/retirement")` on `vesselsApi.ts` initially matched `/api/vessels/retirement-reasons`; refined the assertion to check `.doesNotContain("/retirement`")` and `.doesNotContain("/retirement'")`.
+* **Mockito invocation count after adding registration owner verification**: In `VesselBusinessRulesIT.ownerLookupGoesThroughTheRegistryAdapter`, calling `vessels.create(v)` with an owner and then `vessels.owner(id)` invoked `registry.lookup(OWNER_A)` twice instead of once, requiring `verify(registry, times(2)).lookup(OWNER_A)`.
+
+#### 4. How it was corrected
+* Enabled `"allowImportingTsExtensions": true` alongside `"noEmit": true` in `frontend/tsconfig.json` so both `node --experimental-strip-types --test` and `tsc -b` succeed without errors.
+* Tightened the string check in `VesselFrontendTest` and updated the Mockito verification count in `VesselBusinessRulesIT`, achieving 77/77 passing tests in `./gradlew test`.
+
+---
+
 ### Time Summary
 
 | Milestone / Task | Date | Hours |
@@ -162,5 +198,6 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 | Session 1: Team synchronization call (technicalities, next steps, action items) | 2026-10-22 | 1.0 h |
 | Session 3: Specification consolidation & backlog alignment (team meeting on 12.11) | 2026-11-12 | 0.5 h |
 | Sessions 2 & 3: Database layer testing, backend API, Mock X-Road integration & re-validation | 2026-11-20 – 2026-11-21 | 6.0 h |
-| **Total** | | **10.0 h** |
+| Session 4: Frontend testing & error handling in Gradle, Edit button UX, live registration owner check & SchemaSpy | 2026-11-23 | 3.5 h |
+| **Total** | | **13.5 h** |
 
