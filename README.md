@@ -67,6 +67,69 @@ The Estonian maritime administration maintains official state records of all wat
 | **Registry Adapter** | `backend/src/main/java/ee/taltech/ite4120/animals/ownerregistry/` | Shared live population registry adapter (Mock X-Road `/mock-registry` & `forge-xroad`) with wire records and mapper |
 | **UI (React + @helex/ui)** | `frontend/src/vesselsApi.ts`, `frontend/src/pages/vessels/`, `frontend/src/pages/licenses/` | Vessel list (`ResourceList` with direct Edit action), vessel detail (`ResourceForm` + `useDataController`), and expiring licenses list |
 
+### Database Schema Visualization (`vessels` only — SchemaSpy & Mermaid ER Diagram)
+
+The `vessels` schema is isolated from the course template's `animals` and `core` schemas and consists of 2 reference tables (`vessel_type`, `retirement_reason`) and 3 business tables (`vessel`, `license`, `vessel_ownership`):
+
+```mermaid
+erDiagram
+    VESSEL_TYPE ||--o{ VESSEL : "type_code"
+    RETIREMENT_REASON ||--o{ VESSEL : "retirement_reason"
+    VESSEL ||--o{ LICENSE : "vessel_id"
+    VESSEL ||--o{ VESSEL_OWNERSHIP : "vessel_id"
+
+    VESSEL_TYPE {
+        text code PK
+        text name
+    }
+    RETIREMENT_REASON {
+        text code PK
+        text name
+    }
+    VESSEL {
+        bigint id PK
+        text registry_code UK "unique where sys_status = 'A'"
+        text name
+        text type_code FK
+        integer build_year
+        text home_port
+        numeric gross_tonnage
+        text owner_isikukood "11 digits (resolved via X-Road)"
+        date retired_on
+        text retirement_reason FK
+        text retirement_note
+        char sys_status "'A' or 'D'"
+    }
+    LICENSE {
+        bigint id PK
+        bigint vessel_id FK
+        text license_number
+        text license_type
+        date issued_on
+        date valid_until
+        text status "'ACTIVE' or 'REVOKED'"
+        date revoked_on
+        text revocation_reason
+        char sys_status
+    }
+    VESSEL_OWNERSHIP {
+        bigint id PK
+        bigint vessel_id FK
+        text owner_isikukood "11 digits (resolved via X-Road)"
+        date owned_from
+        date owned_until "null = current owner"
+        char sys_status
+    }
+```
+
+#### Interactive SchemaSpy Report (`-s vessels`)
+* **On GitHub (CI / GitHub Pages)**: The workflow [`.github/workflows/schemaspy.yml`](.github/workflows/schemaspy.yml) starts PostgreSQL, runs the Liquibase migrations, and executes **SchemaSpy** (`schemaspy/schemaspy:latest`) with `-s vessels` (analyzing **only** the `vessels` schema). It uploads the full interactive HTML site and Graphviz ER diagrams (`relationships.real.large.png`) as the **`schemaspy-vessels-report`** workflow artifact and deploys it to **GitHub Pages** on `main` (or via manual *Run workflow*).
+* **Locally**: Once the backend has started at least once (`./scripts/run-backend.sh`), run:
+  ```bash
+  ./scripts/run-schemaspy.sh        # Windows: .\scripts\run-schemaspy.ps1
+  ```
+  This generates and opens `docs/schemaspy/index.html` in your browser.
+
 Full documentation is available in the mdBook documentation suite (run `scripts/run-docs.sh` to serve locally).
 
 ---

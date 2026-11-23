@@ -53,6 +53,80 @@ The `vessels` schema consists of two reference tables and three business tables:
 | | `owned_until` | date | null = current owner; when set, **on or after `owned_from`** |
 | | `sys_*` | — | platform columns, trigger-managed |
 
+### Entity-Relationship Diagram (`vessels` schema)
+
+The diagram below visualizes the 5 tables of the `vessels` schema. An interactive **SchemaSpy** visualization (scoped strictly to `-s vessels`) is also generated automatically in GitHub Actions (`.github/workflows/schemaspy.yml`) and locally via `./scripts/run-schemaspy.sh`:
+
+```mermaid
+erDiagram
+    VESSEL_TYPE ||--o{ VESSEL : "type_code"
+    RETIREMENT_REASON ||--o{ VESSEL : "retirement_reason"
+    VESSEL ||--o{ LICENSE : "vessel_id"
+    VESSEL ||--o{ VESSEL_OWNERSHIP : "vessel_id"
+
+    VESSEL_TYPE {
+        text code PK "FISHING, CARGO, PASSENGER, PLEASURE, SAILING, TUG"
+        text name
+    }
+
+    RETIREMENT_REASON {
+        text code PK "SCRAPPED, LOST, REFLAGGED, OTHER"
+        text name
+    }
+
+    VESSEL {
+        bigint id PK "nextval('core.seq_id')"
+        text registry_code UK "unique where sys_status = 'A'"
+        text name
+        text type_code FK
+        integer build_year ">= 1800, not in future"
+        text home_port
+        numeric gross_tonnage "> 0"
+        text owner_isikukood "11 digits (live lookup via X-Road)"
+        date retired_on "null while active"
+        text retirement_reason FK
+        text retirement_note "required when reason = OTHER"
+        char sys_status "'A' active, 'D' retired"
+        int sys_version
+        timestamptz sys_created_at
+        text sys_created_by
+        timestamptz sys_modified_at
+        text sys_modified_by
+    }
+
+    LICENSE {
+        bigint id PK "nextval('core.seq_id')"
+        bigint vessel_id FK
+        text license_number
+        text license_type "NAVIGATION, FISHING, PASSENGER, CARGO, SAFETY"
+        date issued_on
+        date valid_until ">= issued_on"
+        text status "'ACTIVE' or 'REVOKED'"
+        date revoked_on "required when REVOKED"
+        text revocation_reason "required when REVOKED"
+        char sys_status "'A' active, 'D' deleted draft"
+        int sys_version
+        timestamptz sys_created_at
+        text sys_created_by
+        timestamptz sys_modified_at
+        text sys_modified_by
+    }
+
+    VESSEL_OWNERSHIP {
+        bigint id PK "nextval('core.seq_id')"
+        bigint vessel_id FK
+        text owner_isikukood "11 digits (live lookup via X-Road)"
+        date owned_from
+        date owned_until "null = current owner (unique open period)"
+        char sys_status
+        int sys_version
+        timestamptz sys_created_at
+        text sys_created_by
+        timestamptz sys_modified_at
+        text sys_modified_by
+    }
+```
+
 ### Ownership & Integrity Constraints
 
 - **At most one open ownership period per vessel**: Enforced by partial unique index `create unique index idx_vessel_ownership_current on vessels.vessel_ownership (vessel_id) where (owned_until is null)`.

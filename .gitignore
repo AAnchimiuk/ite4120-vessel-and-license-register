@@ -3,6 +3,7 @@ build/
 node_modules/
 dist/
 docs/book/
+docs/schemaspy/
 *.log
 .DS_Store
 .idea/
