@@ -90,7 +90,7 @@ This diary tracks development hours, interactions with the AI assistant, mistake
 ### Entry 3: Local environment setup and API testing (vessels)
 
 - **Date**: 2026-11-21
-- **Duration**: <3> hours
+- **Duration**: 3 hours
 - **Target Milestone**: Session 4 — Run the application locally and verify the vessels API against the specification.
 
 #### 1. What was done
