@@ -1,6 +1,6 @@
 # VESSELS-US-001 · Register and look up vessels and licenses
 
-> **VESSELS-US-001** · state **Proposed** · traces to [VESSELS.01](../specifications/VESSELS.01-vessel-register.md)
+> **VESSELS-US-001** · state **Implemented** · traces to [VESSELS.01](../specifications/VESSELS.01-vessel-register.md)
 
 **As** a maritime administration officer (Transpordiamet / Veeteede Amet)
 **I want** a register of vessels with their owners and maritime licenses
@@ -24,7 +24,8 @@ commercial fishing license, passenger transport certification) which have clear 
 
 - A vessel can be registered with a unique registry code, name, vessel type, and optional build year, home port, gross tonnage, and owner code.
 - A registry code identifies exactly one **active** vessel; codes of retired (soft-deleted) vessels may be reused.
-- Obvious nonsense is refused with a clear validation error (400): unknown vessel type, build year in the future, malformed personal code (must be exactly 11 digits).
+- Obvious nonsense is refused with a clear validation error (400): unknown vessel type, build year in the future, malformed personal code (must be exactly 11 digits), or an owner personal code that the population registry does not recognise.
+- When an owner personal code is provided on registration (or when assigning the first owner), it is verified live against the population registry (fail-closed: if the registry is unreachable, the request is refused with 502 Bad Gateway and nothing is saved).
 - The vessel register is searchable by name or registry code and filterable by vessel type.
 - For a vessel with an owner, the officer sees the owner's current full name and address, fetched live from the external registry adapter — never stored locally.
 - Maritime licenses can be viewed and added for each vessel, with a license number, license type, issue date, and expiration date.

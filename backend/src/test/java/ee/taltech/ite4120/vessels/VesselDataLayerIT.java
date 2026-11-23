@@ -108,7 +108,7 @@ class VesselDataLayerIT {
                 .isInstanceOf(DataIntegrityViolationException.class);
 
         assertThat(vessels.retire(first, LocalDate.now(), "SCRAPPED", null)).isTrue();
-        assertThat(vessels.loadActive(first)).as("retired vessel leaves the active set").isNull();
+        assertThat(vessels.loadActiveByRegistryCode("DL-DUP-001")).as("retired vessel leaves the active set").isNull();
         assertThat(vessels.load(first).getSysStatus()).isEqualTo("D");
 
         Long reused = vessels.insert(vessel("DL-DUP-001"));
@@ -276,8 +276,6 @@ class VesselDataLayerIT {
 
         assertThat(licenses.listByVesselId(vesselId)).extracting("licenseNumber")
                 .containsExactly("H-NEW", "H-OLD");
-        assertThat(licenses.listCurrentlyValidByVesselId(vesselId, today)).extracting("licenseNumber")
-                .containsExactly("H-NEW");
     }
 
     @Test

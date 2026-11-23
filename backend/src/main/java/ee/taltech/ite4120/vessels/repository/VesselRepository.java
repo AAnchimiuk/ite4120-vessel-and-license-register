@@ -38,11 +38,6 @@ public class VesselRepository extends BaseRepository {
         return getBean(SELECT + "where v.id = ? and v.sys_status in ('A', 'D')", bp, id);
     }
 
-    /** Loads active vessel only. */
-    public Vessel loadActive(Long id) {
-        return getBean(SELECT + "where v.id = ? and v.sys_status = 'A'", bp, id);
-    }
-
     /** Loads active vessel by registry code. */
     public Vessel loadActiveByRegistryCode(String registryCode) {
         return getBean(SELECT + "where v.registry_code = ? and v.sys_status = 'A'", bp, registryCode);

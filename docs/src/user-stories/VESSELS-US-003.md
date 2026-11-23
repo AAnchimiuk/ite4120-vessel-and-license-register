@@ -1,6 +1,6 @@
 # VESSELS-US-003 · Transfer vessel ownership
 
-> **VESSELS-US-003** · state **Proposed** · traces to [VESSELS.01](../specifications/VESSELS.01-vessel-register.md)
+> **VESSELS-US-003** · state **Implemented** · traces to [VESSELS.01](../specifications/VESSELS.01-vessel-register.md)
 
 **As** a maritime administration officer (Transpordiamet / Veeteede Amet)  
 **I want** to record a change of a vessel's owner and keep the history of past owners  

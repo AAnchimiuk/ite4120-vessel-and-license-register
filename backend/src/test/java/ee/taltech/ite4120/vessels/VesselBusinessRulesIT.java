@@ -251,6 +251,19 @@ class VesselBusinessRulesIT {
                 .hasMessageContaining("not found in the population registry");
         assertThat(ownership.history(v.getId())).isEmpty();
         assertThat(vessels.require(v.getId()).getOwnerIsikukood()).isNull();
+
+        // Also verified on initial vessel registration (POST /api/vessels) and first-owner PUT
+        Vessel withUnknownOwner = vessel("BR-REG-GHOST");
+        withUnknownOwner.setOwnerIsikukood("11111111111");
+        assertThatThrownBy(() -> vessels.create(withUnknownOwner))
+                .isInstanceOf(ApiClientException.class)
+                .hasMessageContaining("not found in the population registry");
+
+        Vessel editWithUnknownOwner = vessel("BR-TRF-002");
+        editWithUnknownOwner.setOwnerIsikukood("11111111111");
+        assertThatThrownBy(() -> vessels.update(v.getId(), editWithUnknownOwner))
+                .isInstanceOf(ApiClientException.class)
+                .hasMessageContaining("not found in the population registry");
     }
 
     @Test
@@ -274,6 +287,12 @@ class VesselBusinessRulesIT {
         assertThat(ownership.history(v.getId())).hasSize(1);
         assertThat(ownership.history(v.getId()).get(0).getOwnedUntil()).as("old period untouched").isNull();
         assertThat(vessels.require(v.getId()).getOwnerIsikukood()).isEqualTo(OWNER_A);
+
+        // Registration with an owner also fails closed when the registry is down
+        Vessel withOwner = vessel("BR-REG-DOWN");
+        withOwner.setOwnerIsikukood(OWNER_B);
+        assertThatThrownBy(() -> vessels.create(withOwner))
+                .isInstanceOf(OwnerRegistryException.class);
     }
 
     // 12 ------------------------------------------------------------------------
@@ -350,7 +369,7 @@ class VesselBusinessRulesIT {
         OwnerInfo info = vessels.owner(saved.getId());
 
         assertThat(info.lastName()).isEqualTo("Tamm");
-        verify(registry).lookup(OWNER_A);
+        verify(registry, org.mockito.Mockito.times(2)).lookup(OWNER_A);
     }
 
     @Test

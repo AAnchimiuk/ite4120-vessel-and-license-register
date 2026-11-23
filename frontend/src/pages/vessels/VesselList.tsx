@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Select } from 'antd';
-import { ClockCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, EditOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   AppButtonPrimary,
   AppButtonSecondary,
@@ -11,7 +11,7 @@ import {
   useAppNotification,
   type ResourceListColumn,
 } from '@helex/ui';
-import { vesselsApi, type CodeName, type OwnerInfo, type Vessel } from '../../vesselsApi';
+import { isRetired, vesselsApi, type CodeName, type OwnerInfo, type Vessel } from '../../vesselsApi';
 import { VesselStatusTag } from './LicenseStatusTag';
 
 type StatusFilter = 'active' | 'retired';
@@ -107,6 +107,35 @@ export const VesselList = () => {
       render: (retiredOn: string | null) => <VesselStatusTag retiredOn={retiredOn} />,
     },
     { key: 'grossTonnage', title: 'Gross tonnage', dataIndex: 'grossTonnage', defaultVisible: false },
+    {
+      key: 'actions',
+      title: 'Actions',
+      locked: true,
+      render: (_: unknown, vessel: Vessel) =>
+        isRetired(vessel) ? (
+          <AppButtonSecondary
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/vessels/${vessel.id}`);
+            }}
+          >
+            View
+          </AppButtonSecondary>
+        ) : (
+          <AppButtonSecondary
+            size="small"
+            icon={<EditOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/vessels/${vessel.id}?edit=1`);
+            }}
+          >
+            Edit
+          </AppButtonSecondary>
+        ),
+    },
   ];
 
   return (
@@ -188,6 +217,20 @@ export const VesselList = () => {
                 )}
               </div>
             )}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <AppButtonSecondary size="small" icon={<EyeOutlined />} onClick={() => navigate(`/vessels/${vessel.id}`)}>
+                View details
+              </AppButtonSecondary>
+              {!isRetired(vessel) && (
+                <AppButtonPrimary
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => navigate(`/vessels/${vessel.id}?edit=1`)}
+                >
+                  Edit vessel
+                </AppButtonPrimary>
+              )}
+            </div>
           </div>
         ),
       }}

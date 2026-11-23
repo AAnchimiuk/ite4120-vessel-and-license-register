@@ -79,7 +79,7 @@ export const VesselCreate = () => {
           name="ownerIsikukood"
           label="Owner personal code"
           rules={[{ pattern: /^\d{11}$/, message: 'Exactly 11 digits' }]}
-          extra="Try 38102130265 — the mock registry knows this person"
+          extra="Verified live with the population registry — known to the mock registry: 38102130265, 47503121234, 50011020017"
         >
           <Input placeholder="38102130265" maxLength={11} />
         </Form.Item>

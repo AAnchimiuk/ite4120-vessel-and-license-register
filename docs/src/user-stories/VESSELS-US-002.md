@@ -1,6 +1,6 @@
 # VESSELS-US-002 · Track license validity and expiries
 
-> **VESSELS-US-002** · state **Proposed** · traces to [VESSELS.01](../specifications/VESSELS.01-vessel-register.md)
+> **VESSELS-US-002** · state **Implemented** · traces to [VESSELS.01](../specifications/VESSELS.01-vessel-register.md)
 
 **As** a maritime administration officer (Transpordiamet / Veeteede Amet)  
 **I want** each license to show whether it is currently valid, and to see which licenses are about to expire  

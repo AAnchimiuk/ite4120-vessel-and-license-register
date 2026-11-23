@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert, Button, Form, InputNumber } from 'antd';
 import { ContainerOutlined, StopOutlined } from '@ant-design/icons';
 import { useDataController } from '@helex/core';
@@ -54,10 +54,11 @@ export const VesselDetail = () => {
   const { id } = useParams();
   const vesselId = Number(id);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const notify = useAppNotification();
   const [form] = Form.useForm<Vessel>();
   const dc = useDataController<Vessel>({} as Vessel);
-  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [mode, setMode] = useState<'view' | 'edit'>(searchParams.get('edit') === '1' ? 'edit' : 'view');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [types, setTypes] = useState<CodeName[]>([]);
@@ -84,6 +85,11 @@ export const VesselDetail = () => {
       dc.load(vessel);
       form.setFieldsValue(vessel);
       loadOwner(vessel);
+      if (isRetired(vessel)) {
+        setMode('view');
+      } else if (searchParams.get('edit') === '1') {
+        setMode('edit');
+      }
       return vessel;
     });
     // dc and form are stable handles; the record is keyed by the route parameter.
@@ -133,6 +139,7 @@ export const VesselDetail = () => {
       form.setFieldsValue(updated);
       loadOwner(updated);
       setMode('view');
+      if (searchParams.has('edit')) setSearchParams({}, { replace: true });
       setRefreshKey((k) => k + 1); // setting a first owner opens an ownership period
       notify.success('Saved', `${updated.name} · ${updated.registryCode}`);
     } catch (e) {
@@ -277,6 +284,7 @@ export const VesselDetail = () => {
           dc.reset();
           form.setFieldsValue(dc.original ?? dc.current);
           setMode('view');
+          if (searchParams.has('edit')) setSearchParams({}, { replace: true });
         }}
         onSave={save}
         onDelete={retired ? undefined : () => setRetireOpen(true)}
