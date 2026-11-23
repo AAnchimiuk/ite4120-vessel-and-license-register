@@ -116,7 +116,7 @@ Every error response is formatted as `application/problem+json`. All endpoints r
 | | retired banner | `AppCard` / alert | displayed prominently on retired vessels: shows retirement date, reason, and note |
 | | owner section | `ResourceForm` field | personal code plus live name and address via `/owner`; once set, personal code is read-only |
 | | transfer action | `AppButtonPrimary` | hidden for retired vessels; opens Transfer Ownership modal |
-| | transfer modal | modal with `Input` + `DatePicker` | new owner code (11 digits, on blur fetches name and address from registry); transfer date (`DatePicker`, default today, not in future); submit disabled until registry validates code; displays API problem details on error |
+| | transfer modal | modal with `Input` + `DatePicker` | new owner code (11 digits); transfer date (`DatePicker`, default today, not in future); the server verifies the code with the registry on submit (fail closed) and the modal displays API problem details on error — no client-side registry preview, because the API offers no lookup of an arbitrary code |
 | | ownership history | table | columns: owner name (live from registry), personal code, from date, until date ("current" for active period); shows "Unavailable" when registry is down |
 | | licenses sub-list | table | **all** licenses; columns: license number, type, issued date, valid until date, status tag (color per `effectiveStatus`); row action "Revoke" |
 | | compliance summary | `AppCard` | per license type ever issued: ✓ if at least one currently valid license (`VALID` or `EXPIRING_SOON`), ✗ otherwise |
@@ -126,10 +126,10 @@ Every error response is formatted as `application/problem+json`. All endpoints r
 | | retire action | `AppButtonPrimary` (danger) | hidden for retired vessels; opens Retire Vessel modal |
 | | retire modal | modal with `DatePicker`, `Select`, `TextArea` | retirement date (default today, not in future); reason (`Select` from `/retirement-reasons`); note (`TextArea`, required when reason is OTHER); shows warning with count of valid licenses that will be revoked |
 | | metadata | `ResourceForm.sidebar` — `AppCard` of `FieldItem`s | created at / by, modified at / by, version — platform `sys_*` columns |
-| Register form | form | `ResourceForm` | registry code (`Input`, required, ≤50), name (`Input`, required, ≤255), type (`Select`, required), build year (`InputNumber`, optional, min 1800, max current year), home port (`Input`, optional, ≤100), gross tonnage (`InputNumber`, optional, positive), owner code (`Input`, optional, 11 digits); submit shows API problem details on failure |
+| Register form | form | `AppCard` + antd `Form` (as the template's register form) | registry code (`Input`, required, ≤50), name (`Input`, required, ≤255), type (`Select`, required), build year (`InputNumber`, optional, min 1800, max current year), home port (`Input`, optional, ≤100), gross tonnage (`InputNumber`, optional, positive), owner code (`Input`, optional, 11 digits); submit shows API problem details on failure |
 | Expiring licenses `/licenses/expiring` | table | `ResourceList` | columns: registry code (link to vessel page), vessel name, license number, type tag, valid until, status tag (`EXPIRING_SOON`); sorted soonest first |
 | | filters | `InputNumber` + `Select` | "within days" (default 30) and license type |
-| Navigation | menu item | — | "Expiring licenses" next to "Vessels" in top-level navigation |
+| Navigation | buttons | `AppButtonSecondary` | "Expiring licenses" button on the vessel list, "All vessels" button on the expiring list; `/` opens the vessel list |
 
 ## Business tests
 
