@@ -18,6 +18,7 @@ import org.helex.commons.exception.NotFoundException;
 import org.helex.commons.model.QueryResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Business rules for the vessel register — VESSELS.01 § Business tests 1, 2, 13–16
@@ -32,13 +33,15 @@ public class VesselService {
     private final VesselOwnershipRepository ownerships;
     private final LicenseRepository licenses;
     private final OwnerRegistryAdapter ownerRegistry;
+    private final TransactionTemplate tx;
 
     public VesselService(VesselRepository vessels, VesselOwnershipRepository ownerships,
-            LicenseRepository licenses, OwnerRegistryAdapter ownerRegistry) {
+            LicenseRepository licenses, OwnerRegistryAdapter ownerRegistry, TransactionTemplate tx) {
         this.vessels = vessels;
         this.ownerships = ownerships;
         this.licenses = licenses;
         this.ownerRegistry = ownerRegistry;
+        this.tx = tx;
     }
 
     public QueryResult<Vessel> search(VesselQueryParams params) {
@@ -63,21 +66,26 @@ public class VesselService {
         return v;
     }
 
-    @Transactional
     public Vessel create(Vessel vessel) {
         validate(vessel);
         if (vessels.loadActiveByRegistryCode(vessel.getRegistryCode()) != null) {
             throw new ConflictException("vessel",
                     "an active vessel with registry code " + vessel.getRegistryCode() + " already exists");
         }
-        Long id = vessels.insert(vessel);
+        // Fail closed: verify the initial owner with the population registry before opening a DB transaction.
         if (vessel.getOwnerIsikukood() != null) {
-            openFirstOwnership(id, vessel.getOwnerIsikukood());
+            verifyOwnerExistsInRegistry(vessel.getOwnerIsikukood());
         }
+        Long id = tx.execute(status -> {
+            Long createdId = vessels.insert(vessel);
+            if (vessel.getOwnerIsikukood() != null) {
+                openFirstOwnership(createdId, vessel.getOwnerIsikukood());
+            }
+            return createdId;
+        });
         return require(id);
     }
 
-    @Transactional
     public Vessel update(Long id, Vessel vessel) {
         Vessel existing = requireActive(id);
         // Identity does not change after registration.
@@ -93,14 +101,19 @@ public class VesselService {
                                 + id + "/ownership");
             }
             vessel.setOwnerIsikukood(currentOwner);
+        } else if (requested != null) {
+            // Fail closed when assigning the very first owner to a vessel that had none.
+            verifyOwnerExistsInRegistry(requested);
         }
         vessel.setId(id);
-        if (!vessels.update(vessel)) {
-            throw new NotFoundException("vessel " + id + " not found");
-        }
-        if (currentOwner == null && requested != null) {
-            openFirstOwnership(id, requested);
-        }
+        tx.executeWithoutResult(status -> {
+            if (!vessels.update(vessel)) {
+                throw new NotFoundException("vessel " + id + " not found");
+            }
+            if (currentOwner == null && requested != null) {
+                openFirstOwnership(id, requested);
+            }
+        });
         return require(id);
     }
 
@@ -152,6 +165,18 @@ public class VesselService {
             throw new NotFoundException("person " + isikukood + " not found in the population registry");
         }
         return info;
+    }
+
+    /**
+     * Fail-closed check used when recording an owner on registration, initial owner
+     * assignment, or ownership transfer: an unknown code is a 400 client error, and
+     * an unreachable registry propagates {@code OwnerRegistryException} (502).
+     */
+    void verifyOwnerExistsInRegistry(String isikukood) {
+        OwnerInfo person = ownerRegistry.lookup(isikukood);
+        if (person == null) {
+            throw new ApiClientException("person " + isikukood + " not found in the population registry");
+        }
     }
 
     public List<VesselType> types() {

@@ -53,18 +53,21 @@ public class VesselController {
         return service.require(id);
     }
 
-    @Operation(summary = "Register a vessel (opens the first ownership period when an owner code is given)")
+    @Operation(summary = "Register a vessel (verifies owner with the population registry and opens the first ownership period when an owner code is given)")
     @ApiResponse(responseCode = "201", description = "Created — Location points at the new vessel")
-    @ApiResponse(responseCode = "400", description = "Validation failed (unknown type, future build year, bad owner code…)")
+    @ApiResponse(responseCode = "400", description = "Validation failed (unknown type, future build year, bad or unknown owner code…)")
     @ApiResponse(responseCode = "409", description = "Registry code already in use by an active vessel")
+    @ApiResponse(responseCode = "502", description = "Population registry unavailable (when ownerIsikukood is provided)")
     @PostMapping
     public ResponseEntity<Vessel> create(@Valid @RequestBody VesselRequest body) {
         Vessel saved = service.create(body.toModel());
         return ResponseEntity.created(URI.create("/api/vessels/" + saved.getId())).body(saved);
     }
 
-    @Operation(summary = "Update a vessel — registry code is immutable; the owner can only be set when there is none yet")
+    @Operation(summary = "Update a vessel — registry code is immutable; the owner can only be set when there is none yet (verified live with the registry)")
+    @ApiResponse(responseCode = "400", description = "Validation failed, unknown owner, or attempt to change an existing owner")
     @ApiResponse(responseCode = "409", description = "Vessel is retired")
+    @ApiResponse(responseCode = "502", description = "Population registry unavailable (when setting initial owner)")
     @PutMapping("/{id}")
     public Vessel update(@PathVariable Long id, @Valid @RequestBody VesselRequest body) {
         return service.update(id, body.toModel());

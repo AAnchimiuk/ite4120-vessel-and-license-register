@@ -160,12 +160,12 @@ class VesselApiIT {
     }
 
     @Test
-    void unknownPersonInTheMockRegistryIsA404OnTheOwnerEndpoint() throws Exception {
-        // 50011020017 (Peeter Sepp) is known; a made-up but well-formed code is not
-        HttpResponse<String> created = call("POST", "/api/vessels", """
+    void unknownPersonInTheMockRegistryIsRefusedOnRegistrationAndTransfer() throws Exception {
+        // 50011020017 (Peeter Sepp) is known; a made-up but well-formed code is refused live (400)
+        HttpResponse<String> refused = call("POST", "/api/vessels", """
                 {"registryCode":"API-GHOST","name":"Ghost owner","typeCode":"TUG","ownerIsikukood":"99999999999"}""", true);
-        String id = idOf(created.body());
-        assertThat(call("GET", "/api/vessels/" + id + "/owner", null, true).statusCode()).isEqualTo(404);
+        assertThat(refused.statusCode()).isEqualTo(400);
+        assertThat(refused.body()).contains("not found in the population registry");
     }
 
     private static String idOf(String json) {

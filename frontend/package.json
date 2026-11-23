@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "node --experimental-strip-types --test src/vesselsApi.test.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.1",

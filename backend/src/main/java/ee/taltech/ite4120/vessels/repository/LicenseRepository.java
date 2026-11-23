@@ -32,16 +32,6 @@ public class LicenseRepository extends BaseRepository {
                 bp, vesselId);
     }
 
-    public List<License> listCurrentlyValidByVesselId(Long vesselId, LocalDate asOfDate) {
-        String sql = SELECT + """
-                where l.vessel_id = ?
-                  and l.status = 'ACTIVE'
-                  and l.valid_until >= ?
-                  and l.sys_status = 'A'
-                order by l.valid_until asc""";
-        return getBeans(sql, bp, vesselId, asOfDate);
-    }
-
     public Long insert(License l) {
         String sql = """
                 insert into vessels.license (vessel_id, license_number, license_type, issued_on, valid_until, status)

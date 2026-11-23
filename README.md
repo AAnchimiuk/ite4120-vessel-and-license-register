@@ -28,7 +28,7 @@ The Estonian maritime administration maintains official state records of all wat
 - **One Source of Truth (Estonian E-Government Architecture)**: The owner of the vessel is **never** duplicated as free-text data in the vessel register. The register stores only the owner's personal identification code (`isikukood`, exactly 11 digits as a string) and resolves the owner's full name and address live from the Estonian population registry over X-Road (imitated via an external registry adapter in development).
 - **Dual External Registry Failure Policy**:
   - *Fail-open on queries*: If the population registry adapter is temporarily unavailable, read endpoints return 502 Bad Gateway for owner details while vessel records, licenses, and ownership history remain fully accessible and operable.
-  - *Fail-closed on transfers*: When transferring ownership, registry availability and live validation of the new owner's code are mandatory; if the registry is unreachable, the transfer is refused with 502 Bad Gateway.
+  - *Fail-closed on owner registration & transfers*: Whenever an owner personal code is recorded (on initial vessel registration, first-owner assignment, or ownership transfer), registry availability and live validation of the owner's code are mandatory; unknown codes are refused with 400 Bad Request, and if the registry is unreachable, the operation is refused with 502 Bad Gateway.
 - **Dynamic License Lifecycle**: Validity is calculated on-the-fly from issue and expiration dates and revocation status. An officer can revoke valid licenses with mandatory reason and date.
 - **Auditable Ownership & Retirement**: Ownership is tracked across dated periods. Retiring a vessel preserves all historical records for inspection while preventing new operations.
 
@@ -53,7 +53,7 @@ The Estonian maritime administration maintains official state records of all wat
    - The new owner's personal code is validated live; unrecognised codes or transfers to the current owner are refused with `400 Bad Request`.
    - Unreachable registry refuses the transfer with `502 Bad Gateway`.
 5. **Retirement Integrity**:
-   - Retiring a vessel requires a date, valid reason, and note if reason is `OTHER`.
+   - Retiring a vessel (`DELETE /api/vessels/{id}`, `204 No Content` soft delete) requires a date, valid reason, and note if reason is `OTHER`.
    - Retirement automatically revokes all currently valid licenses with reason "Vessel retired".
    - Retired vessels are frozen: updates, license issuance, and ownership transfers are refused with `409 Conflict`.
 
@@ -64,8 +64,8 @@ The Estonian maritime administration maintains official state records of all wat
 | **Specification & Documentation** | [`docs/src/specifications/VESSELS.01-vessel-register.md`](docs/src/specifications/VESSELS.01-vessel-register.md) | Single unified mdBook spec defining data model, REST API endpoints, business rules, and UI layout |
 | **Data Layer (PostgreSQL + Liquibase)** | `backend/src/main/resources/vessels/db/changelog/` | Schema `vessels` with tables `vessel_type`, `retirement_reason`, `vessel`, `license`, and `vessel_ownership` |
 | **API Layer (Spring Boot + springdoc)** | `backend/src/main/java/ee/taltech/ite4120/vessels/` | REST controllers, service layer, repository (`BaseRepository`), Problem Details errors |
-| **Registry Adapter** | `.../vessels/ownerregistry/` | Live population registry client with wire records and mapper |
-| **UI (React + @helex/ui)** | `frontend/src/pages/vessels/`, `frontend/src/pages/licenses/` | Vessel list (`ResourceList`), vessel detail (`ResourceForm` + `useDataController`), and expiring licenses list |
+| **Registry Adapter** | `backend/src/main/java/ee/taltech/ite4120/animals/ownerregistry/` | Shared live population registry adapter (Mock X-Road `/mock-registry` & `forge-xroad`) with wire records and mapper |
+| **UI (React + @helex/ui)** | `frontend/src/vesselsApi.ts`, `frontend/src/pages/vessels/`, `frontend/src/pages/licenses/` | Vessel list (`ResourceList` with direct Edit action), vessel detail (`ResourceForm` + `useDataController`), and expiring licenses list |
 
 Full documentation is available in the mdBook documentation suite (run `scripts/run-docs.sh` to serve locally).
 
@@ -152,6 +152,7 @@ so tests are safe to run any time. **Docker must be running** (see § Tools).
 | --- | --- | --- |
 | `VesselDataLayerIT` | integration, needs Docker | migrations run clean; reference lists seeded; `sys_*` trigger columns; registry-code uniqueness among active rows and reuse after retirement; every CHECK/FK constraint of `vessel`, `license`, `vessel_ownership` refuses bad data; search/filter/paging; license revocation, history, retirement cascade and expiring list; ownership periods (one open period, transfer) |
 | `LicenseEffectiveStatusTest` | plain unit test, no Docker | derived license status (`VALID`, `EXPIRING_SOON`, `EXPIRED`, `NOT_YET_VALID`, `REVOKED`) incl. boundary days 0/30/31 |
+| `VesselFrontendTest` | frontend unit, contract & `tsc -b`, no Docker | runs all 10 tests in `frontend/src/vesselsApi.test.ts` as JUnit dynamic tests, verifies UI routes/Edit action/`DELETE` retirement contract, and runs TypeScript typecheck (`tsc -b`) |
 
 The rules are taken from [VESSELS.01](docs/src/specifications/VESSELS.01-vessel-register.md)
 (data model + business tests); if you change a rule, change the spec in the same PR.
@@ -187,6 +188,21 @@ select license_number, status, valid_until from vessels.license where vessel_id 
 **Troubleshooting:** *"Could not find a valid Docker environment"* → start Docker
 Desktop (or, with Colima, export `DOCKER_HOST`/`TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE`
 as shown in § Tools). *"cannot resolve org.helex.emr"* → GitHub token (§ GitHub token).
+
+#### Testing the vessels frontend
+
+The frontend verification suite consists of TypeScript project typechecking (`tsc -b`), the Vite production bundle build, and executable Node unit/contract tests (`frontend/src/vesselsApi.test.ts`) verifying domain rules (`isCurrentlyValid`, `isRetired`, license compliance summary, expiring list filtering), all `vesselsApi` endpoints (including `DELETE /api/vessels/{id}` soft-delete retirement and `DELETE /api/vessels/{id}/licenses/{licenseId}` scheduled license cancellation), mock bearer authentication headers, and RFC 9457 `application/problem+json` error handling:
+
+```bash
+# Run frontend tests via Gradle (unified JUnit runner, no Docker needed):
+cd backend && ./gradlew test --tests '*VesselFrontendTest' --console=plain
+
+# Or directly via npm inside frontend/:
+cd frontend
+npm test             # run frontend unit & API contract tests (src/vesselsApi.test.ts)
+npm run typecheck    # TypeScript typecheck (tsc -b)
+npm run build        # full typecheck + production bundle build
+```
 
 The same tests, the frontend typecheck and build, and the changeset gate run on
 every pull request as the **Verify** checks (`.github/workflows/verify.yml`);

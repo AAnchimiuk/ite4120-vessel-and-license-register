@@ -1,6 +1,6 @@
 # VESSELS-US-004 · Retire a vessel
 
-> **VESSELS-US-004** · state **Proposed** · traces to [VESSELS.01](../specifications/VESSELS.01-vessel-register.md)
+> **VESSELS-US-004** · state **Implemented** · traces to [VESSELS.01](../specifications/VESSELS.01-vessel-register.md)
 
 **As** a maritime administration officer (Transpordiamet / Veeteede Amet)  
 **I want** to retire a vessel that has been scrapped, lost or moved to a foreign register  
